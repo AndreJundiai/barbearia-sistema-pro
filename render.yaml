@@ -19,6 +19,12 @@ services:
           property: connectionString
       - key: APP_URL
         fromValue: ${RENDER_EXTERNAL_URL}
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: APP_LOCALE
+        value: pt_BR
+      - key: LOG_CHANNEL
+        value: stderr
 
 databases:
   - name: barbearia-db
