@@ -1,7 +1,7 @@
-# Valida se o APP_KEY existe e tem tamanho suficiente (mínimo 32 caracteres para AES-256)
-if [[ -z "$APP_KEY" || ${#APP_KEY} -lt 32 ]]; then
-    echo "APP_KEY inválida ou ausente. Gerando uma nova..."
-    export APP_KEY=$(php artisan key:generate --show)
+# Valida se o APP_KEY existe e parece ser uma chave Laravel válida (base64:...)
+if [[ -z "$APP_KEY" || ! "$APP_KEY" =~ ^base64: ]]; then
+    echo "APP_KEY inválida ou ausente. Gerando uma nova via PHP puro..."
+    export APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
 fi
 
 php artisan migrate --force
