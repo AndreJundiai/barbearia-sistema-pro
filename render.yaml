@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: barbearia-pro-sistema
+    env: docker
+    plan: free
+    region: ohio
+    envVars:
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: barbearia-db
+          property: connectionString
+      - key: APP_URL
+        fromValue: ${RENDER_EXTERNAL_URL}
+
+databases:
+  - name: barbearia-db
+    plan: free
+    region: ohio
