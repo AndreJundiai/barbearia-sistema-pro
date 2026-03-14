@@ -12,9 +12,16 @@ class GuestBookingController extends Controller
 {
     public function index()
     {
-        $services = Service::all();
-        $hairdressers = \App\Models\Hairdresser::all();
-        return view('booking.index', compact('services', 'hairdressers'));
+        try {
+            $services = Service::all();
+            $hairdressers = \App\Models\Hairdresser::all();
+            return view('booking.index', compact('services', 'hairdressers'));
+        } catch (\Exception $e) {
+            if (config('app.debug')) {
+                throw $e;
+            }
+            return response("Erro no Agendamento: " . $e->getMessage() . " (Verifique se o banco de dados está migrado e populado)", 500);
+        }
     }
 
     public function process(Request $request)
