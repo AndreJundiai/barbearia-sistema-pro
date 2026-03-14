@@ -223,6 +223,8 @@
                 ],
                 horariosOcupados: [],
                 carregandoHorarios: false,
+                enviando: false,
+                metodoPagamento: 'pix',
                 
                 selecionarServico(servico) {
                     this.servicoSelecionado = servico;
@@ -288,7 +290,7 @@
                         }
                     } catch (error) {
                         console.error('Erro:', error);
-                        alert('Ocorreu um erro no processamento.');
+                        alert('Ocorreu um erro no processamento: ' + error.message);
                     } finally {
                         this.enviando = false;
                     }

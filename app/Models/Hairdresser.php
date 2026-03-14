@@ -12,6 +12,8 @@ class Hairdresser extends Model
     protected $fillable = [
         'name',
         'phone',
+        'specialty',
+        'bio',
         'commission_percent',
     ];
 

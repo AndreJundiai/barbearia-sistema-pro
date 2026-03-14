@@ -51,13 +51,18 @@ class GuestBookingController extends Controller
 
         // Registrar no módulo financeiro apenas se pago agora
         if ($appointment->payment_status === 'paid') {
-            Transaction::create([
-                'type' => 'income',
-                'amount' => $appointment->total_price,
-                'description' => "Agendamento Online ($data[payment_method]): {$appointment->client_name} - {$service->name}",
-                'appointment_id' => $appointment->id,
-                'transaction_date' => now(),
-            ]);
+            try {
+                Transaction::create([
+                    'type' => 'income',
+                    'amount' => $appointment->total_price,
+                    'description' => "Agendamento Online (" . ($data['payment_method'] ?? 'N/A') . "): " . ($appointment->client_name ?? 'Cliente') . " - " . ($service->name ?? 'Serviço'),
+                    'appointment_id' => $appointment->id,
+                    'transaction_date' => now(),
+                ]);
+            } catch (\Exception $e) {
+                // Log the error but don't fail the whole booking if only transaction fails
+                \Illuminate\Support\Facades\Log::error("Erro ao registrar transação: " . $e->getMessage());
+            }
         }
 
         return response()->json([
