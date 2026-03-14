@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('hairdressers', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('specialty')->nullable();
+            $table->text('bio')->nullable();
             $table->string('phone')->nullable();
             $table->decimal('commission_percent', 5, 2)->default(10.00);
             $table->timestamps();

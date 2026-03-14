@@ -8,6 +8,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#D4AF37">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #e5e5e5; }
         .font-luxury { font-family: 'Playfair Display', serif; }
@@ -205,7 +216,11 @@
                 horaAgendamento: '',
                 nomeCliente: '',
                 telefoneCliente: '',
-                horariosDisponiveis: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'],
+                horariosDisponiveis: [
+                    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
+                    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', 
+                    '17:00', '17:30', '18:00', '18:30', '19:00'
+                ],
                 horariosOcupados: [],
                 carregandoHorarios: false,
                 
