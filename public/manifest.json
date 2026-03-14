@@ -1,7 +1,10 @@
 {
-  "name": "Barbearia Elite",
+  "name": "Barbearia Elite - Agendamento",
   "short_name": "Elite B.",
+  "description": "Sistema de agendamento premium para a Barbearia Elite. Escolha seu serviço e barbeiro favorito em poucos cliques.",
+  "categories": ["lifestyle", "beauty"],
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#D4AF37",
@@ -9,13 +12,16 @@
     {
       "src": "/icons/icon-512.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "lang": "pt-BR"
 }
