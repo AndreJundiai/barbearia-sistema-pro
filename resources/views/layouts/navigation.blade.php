@@ -16,10 +16,10 @@
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                             {{ __('Painel') }}
                         </x-nav-link>
-                        <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')">
-                            {{ __('Financeiro') }}
-                        </x-nav-link>
                         @if(Auth::user()->isAdmin())
+                            <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')">
+                                {{ __('Financeiro') }}
+                            </x-nav-link>
                             <x-nav-link :href="route('hairdressers.index')" :active="request()->routeIs('hairdressers.*')">
                                 {{ __('Cabeleireiros') }}
                             </x-nav-link>
@@ -98,6 +98,9 @@
                     {{ __('Dashboard') }}
                 </x-responsive-nav-link>
                 @if(Auth::user()->isAdmin())
+                    <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.index')">
+                        {{ __('Financeiro') }}
+                    </x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('hairdressers.index')" :active="request()->routeIs('hairdressers.*')">
                         {{ __('Cabeleireiros') }}
                     </x-responsive-nav-link>

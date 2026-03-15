@@ -11,6 +11,9 @@
                     <p class="text-gray-500 mt-2 text-sm uppercase tracking-widest font-bold">Controle total de fluxo e comissões</p>
                 </div>
                 <div class="flex items-center gap-3">
+                    <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="px-6 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-xs font-black text-white uppercase tracking-widest transition-all">
+                        Importar Planilha
+                    </button>
                     <span class="px-4 py-2 bg-gray-900 border border-gray-800 rounded-full text-xs font-bold text-gray-400">
                         {{ now()->translatedFormat('M Y') }}
                     </span>
@@ -55,6 +58,18 @@
                     <div class="mt-4 bg-gold text-black text-[10px] font-black px-3 py-1 rounded-full w-fit uppercase">
                         Patrimônio Atual
                     </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-gray-900/50 p-6 rounded-3xl border border-gray-800">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">Fluxo de Caixa (7 dias)</h3>
+                    <canvas id="flowChart" height="200"></canvas>
+                </div>
+                <div class="bg-gray-900/50 p-6 rounded-3xl border border-gray-800">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">Despesas vs Receitas</h3>
+                    <canvas id="distributionChart" height="200"></canvas>
                 </div>
             </div>
 
@@ -227,6 +242,86 @@
         </div>
     </div>
 
+    <!-- Import Modal -->
+    <div id="importModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 p-8 rounded-[2rem] max-w-md w-full relative">
+            <button onclick="document.getElementById('importModal').classList.add('hidden')" class="absolute top-6 right-6 text-gray-500 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h3 class="text-2xl font-luxury text-white mb-4">Importar <span class="text-gold">Dados</span></h3>
+            <p class="text-gray-500 text-xs mb-6 uppercase tracking-widest font-bold">Formato CSV (Data;Descrição;Tipo;Valor)</p>
+            
+            <form action="{{ route('finance.import') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+                @csrf
+                <div class="border-2 border-dashed border-gray-800 rounded-2xl p-8 text-center hover:border-gold/50 cursor-pointer transition-all">
+                    <input type="file" name="csv_file" class="hidden" id="csvFileInput" onchange="document.getElementById('fileName').innerText = this.files[0].name">
+                    <label for="csvFileInput" class="cursor-pointer">
+                        <svg class="w-12 h-12 text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p id="fileName" class="text-sm text-gray-400 font-bold">Clique para selecionar sua planilha</p>
+                    </label>
+                </div>
+                <button type="submit" class="w-full bg-gold text-black font-black py-4 rounded-xl uppercase tracking-widest text-xs shadow-lg shadow-gold/10">
+                    Processar Migração
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const ctxFlow = document.getElementById('flowChart').getContext('2d');
+        const ctxDist = document.getElementById('distributionChart').getContext('2d');
+
+        const dates = @json($chartData->keys());
+        const incomes = @json($chartData->map(fn($day) => $day->where('type', 'income')->sum('total'))->values());
+        const expenses = @json($chartData->map(fn($day) => $day->where('type', 'expense')->sum('total'))->values());
+
+        new Chart(ctxFlow, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Entradas',
+                        data: incomes,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Saídas',
+                        data: expenses,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#4b5563', font: { size: 10 } } } }
+            }
+        });
+
+        new Chart(ctxDist, {
+            type: 'doughnut',
+            data: {
+                labels: ['Receitas', 'Despesas'],
+                datasets: [{
+                    data: [{{ $totalIncome }}, {{ $totalExpense }}],
+                    backgroundColor: ['#D4AF37', '#1f1f23'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', font: { size: 10, weight: 'bold' } } } },
+                cutout: '80%'
+            }
+        });
+    </script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Outfit:wght@300;400;700;900&display=swap');
         
@@ -237,36 +332,15 @@
         .font-luxury {
             font-family: 'Cormorant Garamond', serif;
         }
+        
+        .text-gold { color: #D4AF37; }
+        .bg-gold { background-color: #D4AF37; }
+        .bg-gold-dark { background-color: #B8860B; }
+        .border-gold { border-color: #D4AF37; }
 
-        .text-gold {
-            color: #D4AF37;
-        }
-        
-        .bg-gold {
-            background-color: #D4AF37;
-        }
-        
-        .bg-gold-dark {
-            background-color: #B8860B;
-        }
-        
-        .border-gold {
-            border-color: #D4AF37;
-        }
-
-        /* Custom scrollbar for better look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0a0a0b;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #1f1f23;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #D4AF37;
-        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0b; }
+        ::-webkit-scrollbar-thumb { background: #1f1f23; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #D4AF37; }
     </style>
 </x-app-layout>

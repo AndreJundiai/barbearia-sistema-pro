@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::get('/financeiro', [FinanceController::class, 'index'])->name('finance.index');
     Route::post('/financeiro', [FinanceController::class, 'store'])->name('finance.store');
+    Route::post('/financeiro/importar', [FinanceController::class, 'importCsv'])->name('finance.import');
     Route::post('/financeiro/pagar-comissao/{hairdresser}', [FinanceController::class, 'payCommissions'])->name('finance.pay-commissions');
 
     Route::middleware('admin')->group(function () {
