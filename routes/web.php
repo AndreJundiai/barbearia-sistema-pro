@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('admin')->group(function () {
         Route::resource('hairdressers', \App\Http\Controllers\HairdresserController::class);
+        Route::resource('users', \App\Http\Controllers\UserController::class)->only(['index', 'store', 'destroy']);
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

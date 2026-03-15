@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Service;
 use App\Models\Transaction;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -44,13 +45,27 @@ class AppointmentController extends Controller
 
         $service = Service::find($data['service_id']);
         
+        // Gestão Automatizada de Cliente
+        $customer = Customer::where('phone', $data['client_phone'])->first();
+        if (!$customer) {
+            $customer = Customer::create([
+                'name' => $data['client_name'],
+                'phone' => $data['client_phone'],
+            ]);
+        }
+
         $data['total_price'] = $service->price;
         $data['status'] = 'scheduled';
         $data['user_id'] = auth()->id();
+        $data['customer_id'] = $customer->id;
         $data['payment_method'] = 'presencial';
         $data['payment_status'] = 'pending';
 
         $appointment = Appointment::create($data);
+        
+        // No dashboard adm, marcamos como pendente, então não incrementa total_spent ainda.
+        // Se quiser incrementar no agendamento manual, descomente a linha abaixo:
+        // $customer->increment('total_spent', $appointment->total_price);
 
         // Registrar no financeiro como receita agendada (ou pendente)
         // No walkthrough dizia que agendou -> receita registrada

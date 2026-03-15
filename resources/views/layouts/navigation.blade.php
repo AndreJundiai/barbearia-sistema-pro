@@ -23,6 +23,9 @@
                             <x-nav-link :href="route('hairdressers.index')" :active="request()->routeIs('hairdressers.*')">
                                 {{ __('Cabeleireiros') }}
                             </x-nav-link>
+                            <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                                {{ __('Administradores') }}
+                            </x-nav-link>
                         @endif
                     @endauth
                     <x-nav-link :href="route('ai-corrector.index')" :active="request()->routeIs('ai-corrector.*')">

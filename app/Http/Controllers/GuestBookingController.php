@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Service;
 use App\Models\Transaction;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -49,12 +50,27 @@ class GuestBookingController extends Controller
 
         $service = Service::find($data['service_id']);
         
+        // Gestão Automatizada de Cliente
+        $customer = Customer::where('phone', $data['client_phone'])->first();
+        if (!$customer) {
+            $customer = Customer::create([
+                'name' => $data['client_name'],
+                'phone' => $data['client_phone'],
+            ]);
+        }
+
         // Simulação de processamento de pagamento
         $data['total_price'] = $service->price;
         $data['payment_status'] = $data['payment_method'] === 'pay_later' ? 'pending' : 'paid';
         $data['status'] = 'scheduled';
+        $data['customer_id'] = $customer->id;
 
         $appointment = Appointment::create($data);
+
+        // Atualizar gasto do cliente se pago
+        if ($appointment->payment_status === 'paid') {
+            $customer->increment('total_spent', $appointment->total_price);
+        }
 
         // Registrar no módulo financeiro apenas se pago agora
         if ($appointment->payment_status === 'paid') {
