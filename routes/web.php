@@ -40,4 +40,7 @@ Route::get('/agendar/disponibilidade', [\App\Http\Controllers\GuestBookingContro
 Route::post('/agendar/processar', [\App\Http\Controllers\GuestBookingController::class, 'process'])->name('booking.process');
 Route::get('/agendar/sucesso/{id}', [\App\Http\Controllers\GuestBookingController::class, 'success'])->name('booking.success');
 
+// Webhooks
+Route::post('/webhooks/mercadopago', [\App\Http\Controllers\WebhookController::class, 'handleMercadoPago']);
+
 require __DIR__.'/auth.php';

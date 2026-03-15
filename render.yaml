@@ -18,7 +18,8 @@ services:
           name: barbearia-db
           property: connectionString
       - key: APP_URL
-        sync: false # O Render solicitará a URL final ou você pode preencher manualmente
+        fromContext:
+          parameter: externalUrl
       - key: SESSION_DRIVER
         value: cookie
       - key: APP_LOCALE
