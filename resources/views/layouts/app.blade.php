@@ -14,9 +14,26 @@
         <!-- Scripts -->
         <script src="https://cdn.tailwindcss.com"></script>
 
-        <!-- PWA -->
+        <!-- PWA & Mobile Optimization -->
         <link rel="manifest" href="/manifest.json">
-        <meta name="theme-color" content="#D4AF37">
+        <meta name="theme-color" content="#0a0a0a">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Elite Barber">
+        
+        <style>
+            :root {
+                --sat: env(safe-area-inset-top);
+                --sar: env(safe-area-inset-right);
+                --sab: env(safe-area-inset-bottom);
+                --sal: env(safe-area-inset-left);
+            }
+            body {
+                padding-top: var(--sat);
+                padding-bottom: var(--sab);
+            }
+        </style>
+
         <script>
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
@@ -25,9 +42,11 @@
             }
         </script>
     </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100">
+    <body class="font-sans antialiased bg-deep-black text-gray-200">
+        <div class="min-h-screen bg-gray-100 pb-20 sm:pb-0">
             @include('layouts.navigation')
+            
+            <x-bottom-nav />
 
             <!-- Page Heading -->
             @isset($header)

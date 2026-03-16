@@ -7,7 +7,7 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
-  "theme_color": "#D4AF37",
+  "theme_color": "#0a0a0a",
   "icons": [
     {
       "src": "/icons/icon-512.png",
@@ -20,6 +20,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Novo Agendamento",
+      "short_name": "Agendar",
+      "description": "Marcar um novo horário",
+      "url": "/booking",
+      "icons": [{ "src": "/icons/icon-512.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Meus Agendamentos",
+      "short_name": "Agenda",
+      "description": "Ver meus compromissos",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/icon-512.png", "sizes": "192x192" }]
     }
   ],
   "orientation": "portrait",
