@@ -28,7 +28,8 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 # Copia configuração do Nginx
 COPY ./deployment/nginx.conf /etc/nginx/sites-available/default
 
-RUN composer install --no-dev --optimize-autoloader
+# Atualiza dependências e gera o lock file sincronizado
+RUN composer update --no-dev --optimize-autoloader
 
 # Script de Inicialização
 RUN chmod +x ./deployment/init.sh
