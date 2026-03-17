@@ -51,6 +51,10 @@ class GuestBookingController extends Controller
 
         $service = Service::find($data['service_id']);
         
+        // Configuração Mercado Pago
+        $accessToken = env('MERCADO_PAGO_ACCESS_TOKEN');
+        $isMercadoPagoEnabled = !empty($accessToken);
+
         // Gestão Automatizada de Cliente
         $customer = Customer::where('phone', $data['client_phone'])->first();
         if (!$customer) {
@@ -60,53 +64,92 @@ class GuestBookingController extends Controller
                 'email' => $data['email'] ?? null,
             ]);
         } else {
-            // Atualizar e-mail se fornecido agora e não existia antes
             if (!$customer->email && isset($data['email'])) {
                 $customer->update(['email' => $data['email']]);
             }
         }
 
-        // Simulação de processamento de pagamento
         $data['total_price'] = $service->price;
-        $data['payment_status'] = $data['payment_method'] === 'pay_later' ? 'pending' : 'paid';
-        $data['status'] = 'scheduled';
         $data['customer_id'] = $customer->id;
+        $appointmentId = null;
+        $paymentInfo = [];
+
+        if ($isMercadoPagoEnabled && $data['payment_method'] !== 'pay_later') {
+            try {
+                \MercadoPago\SDK::setAccessToken($accessToken);
+
+                $payment = new \MercadoPago\Payment();
+                $payment->transaction_amount = (float) $service->price;
+                $payment->description = $service->name;
+                $payment->payment_method_id = $data['payment_method']; // pix ou credit_card (ajustado pelo frontend)
+                $payment->payer = [
+                    "email" => $customer->email ?? 'cliente@exemplo.com',
+                    "first_name" => $customer->name,
+                ];
+
+                if ($data['payment_method'] === 'pix') {
+                    $payment->save();
+                    
+                    if ($payment->status === 'pending') {
+                        $data['payment_status'] = 'pending';
+                        $data['status'] = 'pending_payment';
+                        $paymentInfo = [
+                            'qr_code' => $payment->point_of_interaction->transaction_data->qr_code,
+                            'qr_code_base64' => $payment->point_of_interaction->transaction_data->qr_code_base64,
+                            'ticket_url' => $payment->point_of_interaction->transaction_data->ticket_url,
+                            'payment_id' => $payment->id
+                        ];
+                    }
+                } else {
+                    // Para Cartão de Crédito, o payload exigiria o token do cartão via Bricks/SDK JS
+                    // Por enquanto, manteremos como pendente se não houver token, ou processar normal se houver
+                    $data['payment_status'] = 'pending';
+                    $data['status'] = 'pending_payment';
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Erro Mercado Pago: " . $e->getMessage());
+                // Fallback para simulação se falhar a API real mas chaves existirem? 
+                // Melhor avisar o usuário.
+                return response()->json(['success' => false, 'message' => 'Erro ao processar pagamento com Mercado Pago.'], 500);
+            }
+        } else {
+            // Simulação ou Pagamento Local
+            $data['payment_status'] = $data['payment_method'] === 'pay_later' ? 'pending' : 'paid';
+            $data['status'] = 'scheduled';
+        }
 
         $appointment = Appointment::create($data);
 
-        // Enviar Notificação de Confirmação Imediata
+        // Notificação
         try {
             $customer->notify(new \App\Notifications\AppointmentNotification($appointment, 'confirmation'));
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Erro ao enviar notificação: " . $e->getMessage());
         }
 
-        // Atualizar gasto do cliente e pontos de fidelidade se pago
+        // Registrar no financeiro se já for pago (ex: pay_later simulado como pago ou cartão aprovado)
         if ($appointment->payment_status === 'paid') {
             $customer->increment('total_spent', $appointment->total_price);
-            $customer->increment('loyalty_points', 1); // 1 ponto por serviço
-        }
-
-        // Registrar no módulo financeiro apenas se pago agora
-        if ($appointment->payment_status === 'paid') {
+            $customer->increment('loyalty_points', 1);
+            
             try {
                 Transaction::create([
                     'type' => 'income',
                     'amount' => $appointment->total_price,
-                    'description' => "Agendamento Online (" . ($data['payment_method'] ?? 'N/A') . "): " . ($appointment->client_name ?? 'Cliente') . " - " . ($service->name ?? 'Serviço'),
+                    'description' => "Agendamento Online (" . $data['payment_method'] . "): " . $customer->name . " - " . $service->name,
                     'appointment_id' => $appointment->id,
                     'transaction_date' => now(),
                 ]);
             } catch (\Exception $e) {
-                // Log the error but don't fail the whole booking if only transaction fails
-                \Illuminate\Support\Facades\Log::error("Erro ao registrar transação: " . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error("Erro financeiro: " . $e->getMessage());
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Agendamento realizado com sucesso!',
-            'appointment_id' => $appointment->id
+            'message' => 'Agendamento realizado!',
+            'appointment_id' => $appointment->id,
+            'payment_info' => $paymentInfo
         ]);
     }
 
