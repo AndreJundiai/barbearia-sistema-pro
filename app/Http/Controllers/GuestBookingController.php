@@ -76,19 +76,22 @@ class GuestBookingController extends Controller
 
         if ($isMercadoPagoEnabled && $data['payment_method'] !== 'pay_later') {
             try {
-                \MercadoPago\SDK::setAccessToken($accessToken);
+                // Mercado Pago v3 SDK Namespace
+                \MercadoPago\MercadoPagoConfig::setAccessToken($accessToken);
+                $client = new \MercadoPago\Client\Payment\PaymentClient();
 
-                $payment = new \MercadoPago\Payment();
-                $payment->transaction_amount = (float) $service->price;
-                $payment->description = $service->name;
-                $payment->payment_method_id = $data['payment_method']; // pix ou credit_card (ajustado pelo frontend)
-                $payment->payer = [
-                    "email" => $customer->email ?? 'cliente@exemplo.com',
-                    "first_name" => $customer->name,
+                $createRequest = [
+                    "transaction_amount" => (float) $service->price,
+                    "description" => $service->name,
+                    "payment_method_id" => $data['payment_method'], // "pix" ou "credit_card"
+                    "payer" => [
+                        "email" => $customer->email ?? 'cliente@exemplo.com',
+                        "first_name" => $customer->name,
+                    ],
                 ];
 
                 if ($data['payment_method'] === 'pix') {
-                    $payment->save();
+                    $payment = $client->create($createRequest);
                     
                     if ($payment->status === 'pending') {
                         $data['payment_status'] = 'pending';
@@ -99,18 +102,22 @@ class GuestBookingController extends Controller
                             'ticket_url' => $payment->point_of_interaction->transaction_data->ticket_url,
                             'payment_id' => $payment->id
                         ];
+                    } else {
+                        \Illuminate\Support\Facades\Log::warning("Mercado Pago Status Inesperado: " . $payment->status);
                     }
                 } else {
-                    // Para Cartão de Crédito, o payload exigiria o token do cartão via Bricks/SDK JS
-                    // Por enquanto, manteremos como pendente se não houver token, ou processar normal se houver
+                    // Para Cartão, o fluxo real exige token gerado no frontend (Bricks)
+                    // Por ora marcamos como pendente para não travar o fluxo de teste do usuário
                     $data['payment_status'] = 'pending';
                     $data['status'] = 'pending_payment';
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Erro Mercado Pago: " . $e->getMessage());
-                // Fallback para simulação se falhar a API real mas chaves existirem? 
-                // Melhor avisar o usuário.
-                return response()->json(['success' => false, 'message' => 'Erro ao processar pagamento com Mercado Pago.'], 500);
+                \Illuminate\Support\Facades\Log::error("Erro Mercado Pago CRITICO: " . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error($e->getTraceAsString());
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Erro na API do Mercado Pago: ' . $e->getMessage()
+                ], 500);
             }
         } else {
             // Simulação ou Pagamento Local
