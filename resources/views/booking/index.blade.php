@@ -121,14 +121,23 @@
             <!-- Step 4: Client Info -->
             <div x-show="etapa === 4" x-cloak x-transition>
                 <h2 class="text-2xl font-luxury mb-6 border-b border-gray-800 pb-4">Seus Dados</h2>
-                <div class="space-y-4">
+                <div class="space-y-6">
                     <div>
-                        <label class="block text-xs uppercase text-gray-500 font-bold mb-2">Nome Completo</label>
-                        <input type="text" x-model="nomeCliente" placeholder="Como deseja ser chamado?" class="w-full bg-gray-900 border-gray-800 rounded-lg text-white focus:ring-gold focus:border-gold">
+                        <label class="block text-xs uppercase text-gray-400 font-bold mb-2">Nome Completo <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="nomeCliente" placeholder="Como deseja ser chamado?" class="w-full bg-gray-900 border-gray-800 rounded-xl text-white focus:ring-gold focus:border-gold py-3 px-4">
                     </div>
                     <div>
-                        <label class="block text-xs uppercase text-gray-500 font-bold mb-2">WhatsApp / Celular</label>
-                        <input type="tel" x-model="telefoneCliente" placeholder="(00) 00000-0000" class="w-full bg-gray-900 border-gray-800 rounded-lg text-white focus:ring-gold focus:border-gold">
+                        <label class="block text-xs uppercase text-gray-400 font-bold mb-2">WhatsApp / Celular <span class="text-red-500">*</span></label>
+                        <input type="tel" x-model="telefoneCliente" placeholder="(00) 00000-0000" class="w-full bg-gray-900 border-gray-800 rounded-xl text-white focus:ring-gold focus:border-gold py-3 px-4">
+                        <p class="text-[10px] text-gray-500 mt-2 flex items-center">
+                            <svg class="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/></svg>
+                            Usaremos este número para enviar o lembrete via WhatsApp/SMS.
+                        </p>
+                    </div>
+                    <div class="pt-2">
+                        <label class="block text-xs uppercase text-gray-400 font-bold mb-2">E-mail (Opcional)</label>
+                        <input type="email" x-model="emailCliente" placeholder="Para receber o lembrete por e-mail" class="w-full bg-gray-900 border-gray-800 rounded-xl text-white focus:ring-gold focus:border-gold py-3 px-4">
+                        <p class="text-[10px] text-gray-500 mt-2 italic">Fique tranquilo, o e-mail não é obrigatório.</p>
                     </div>
                 </div>
             </div>
@@ -216,6 +225,7 @@
                 horaAgendamento: '',
                 nomeCliente: '',
                 telefoneCliente: '',
+                emailCliente: '',
                 horariosDisponiveis: [
                     '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
                     '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', 
@@ -274,6 +284,7 @@
                             body: JSON.stringify({
                                 client_name: this.nomeCliente,
                                 client_phone: this.telefoneCliente,
+                                email: this.emailCliente,
                                 service_id: this.servicoSelecionado.id,
                                 hairdresser_id: this.profissionalSelecionado.id,
                                 scheduled_at: scheduled_at,

@@ -26,6 +26,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Admin Gallery
+    Route::get('/admin/galeria/nova', [\App\Http\Controllers\GalleryController::class, 'create'])->name('gallery.create');
+    Route::post('/admin/galeria', [\App\Http\Controllers\GalleryController::class, 'store'])->name('gallery.store');
 });
 
 // AI Corrector (Público)
@@ -41,6 +45,10 @@ Route::get('/agendar', [\App\Http\Controllers\GuestBookingController::class, 'in
 Route::get('/agendar/disponibilidade', [\App\Http\Controllers\GuestBookingController::class, 'checkAvailability'])->name('booking.availability');
 Route::post('/agendar/processar', [\App\Http\Controllers\GuestBookingController::class, 'process'])->name('booking.process');
 Route::get('/agendar/sucesso/{id}', [\App\Http\Controllers\GuestBookingController::class, 'success'])->name('booking.success');
+
+// Galeria de Estilos (Pública)
+Route::get('/galeria', [\App\Http\Controllers\GalleryController::class, 'index'])->name('gallery.index');
+
 
 // Webhooks
 Route::post('/webhooks/mercadopago', [\App\Http\Controllers\WebhookController::class, 'handleMercadoPago']);

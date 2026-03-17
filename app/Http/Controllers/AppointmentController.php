@@ -62,6 +62,14 @@ class AppointmentController extends Controller
         $data['payment_status'] = 'pending';
 
         $appointment = Appointment::create($data);
+        $customer->increment('loyalty_points', 1); // 1 ponto por serviço agendado manual
+        
+        // Enviar Notificação de Confirmação Imediata (Manual)
+        try {
+            $customer->notify(new \App\Notifications\AppointmentNotification($appointment, 'confirmation'));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Erro ao enviar notificação manual: " . $e->getMessage());
+        }
         
         // No dashboard adm, marcamos como pendente, então não incrementa total_spent ainda.
         // Se quiser incrementar no agendamento manual, descomente a linha abaixo:

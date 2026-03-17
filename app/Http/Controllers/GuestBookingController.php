@@ -30,6 +30,7 @@ class GuestBookingController extends Controller
         $data = $request->validate([
             'client_name' => 'required|string|max:255',
             'client_phone' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255',
             'service_id' => 'required|exists:services,id',
             'hairdresser_id' => 'required|exists:hairdressers,id',
             'scheduled_at' => 'required|date|after:now',
@@ -56,7 +57,13 @@ class GuestBookingController extends Controller
             $customer = Customer::create([
                 'name' => $data['client_name'],
                 'phone' => $data['client_phone'],
+                'email' => $data['email'] ?? null,
             ]);
+        } else {
+            // Atualizar e-mail se fornecido agora e não existia antes
+            if (!$customer->email && isset($data['email'])) {
+                $customer->update(['email' => $data['email']]);
+            }
         }
 
         // Simulação de processamento de pagamento
@@ -67,9 +74,17 @@ class GuestBookingController extends Controller
 
         $appointment = Appointment::create($data);
 
-        // Atualizar gasto do cliente se pago
+        // Enviar Notificação de Confirmação Imediata
+        try {
+            $customer->notify(new \App\Notifications\AppointmentNotification($appointment, 'confirmation'));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Erro ao enviar notificação: " . $e->getMessage());
+        }
+
+        // Atualizar gasto do cliente e pontos de fidelidade se pago
         if ($appointment->payment_status === 'paid') {
             $customer->increment('total_spent', $appointment->total_price);
+            $customer->increment('loyalty_points', 1); // 1 ponto por serviço
         }
 
         // Registrar no módulo financeiro apenas se pago agora

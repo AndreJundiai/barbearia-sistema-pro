@@ -75,12 +75,22 @@
                     <div class="space-y-6">
                         <div class="bg-deep-black text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
                             <div class="relative z-10">
-                                <h4 class="text-gold-400 font-bold text-sm uppercase mb-1">Status da Conta</h4>
-                                <div class="text-3xl font-black mb-4">Cliente VIP</div>
-                                <div class="w-full bg-gray-800 rounded-full h-2 mb-2">
-                                    <div class="bg-gold-400 h-2 rounded-full" style="width: 75%"></div>
+                                @php
+                                    $topCustomer = $appointments->first()?->customer;
+                                    $points = $topCustomer?->loyalty_points ?? 0;
+                                    $target = 10;
+                                    $progress = min(($points / $target) * 100, 100);
+                                @endphp
+                                <h4 class="text-gold-400 font-bold text-sm uppercase mb-1">Cartão VIP Digital</h4>
+                                <div class="text-3xl font-black mb-4">
+                                    {{ $points >= $target ? 'Recompensa Liberada!' : 'Cliente VIP' }}
                                 </div>
-                                <p class="text-xs text-gray-400">Faltam 2 cortes para seu próximo desconto!</p>
+                                <div class="w-full bg-gray-800 rounded-full h-3 mb-2">
+                                    <div class="bg-gold-400 h-3 rounded-full transition-all duration-1000" style="width: {{ $progress }}%"></div>
+                                </div>
+                                <p class="text-xs text-gray-400">
+                                    {{ $points >= $target ? 'Você ganhou um corte grátis!' : 'Faltam ' . ($target - $points) . ' cortes para sua recompensa!' }}
+                                </p>
                             </div>
                             <!-- Subtle background SVG -->
                             <svg class="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-gray-800 opacity-20 transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
