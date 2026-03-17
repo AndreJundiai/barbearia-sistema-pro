@@ -16,7 +16,7 @@ class BarbershopSeeder extends Seeder
             'name' => 'Corte de Cabelo',
             'description' => 'Corte tradicional ou degradê completo.',
             'duration_minutes' => 45,
-            'price' => 50.00,
+            'price' => 0.50,
         ]);
 
         \App\Models\Service::create([
