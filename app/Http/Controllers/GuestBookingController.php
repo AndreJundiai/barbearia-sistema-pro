@@ -34,7 +34,7 @@ class GuestBookingController extends Controller
                 'email' => 'nullable|email|max:255',
                 'service_id' => 'required|exists:services,id',
                 'hairdresser_id' => 'required|exists:hairdressers,id',
-                'scheduled_at' => 'required|date|after:now',
+                'scheduled_at' => 'required|date|after:yesterday',
                 'payment_method' => 'required|in:pix,credit_card,pay_later',
             ]);
 
