@@ -25,6 +25,9 @@ class GuestBookingController extends Controller
         }
     }
 
+    public function process(Request $request)
+    {
+        try {
             \Illuminate\Support\Facades\Log::info("Iniciando processamento de agendamento", ['payload' => $request->all()]);
 
             $data = $request->validate([
