@@ -304,11 +304,18 @@
                         if (result.success) {
                             window.location.href = `/agendar/sucesso/${result.appointment_id}`;
                         } else {
-                            alert('Erro ao processar agendamento: ' + result.message);
+                            const errorMsg = result.message || 'Erro desconhecido no servidor';
+                            console.error('Erro retornado pela API:', result);
+                            alert('Erro ao processar agendamento: ' + errorMsg);
                         }
                     } catch (error) {
-                        console.error('Erro:', error);
-                        alert('Ocorreu um erro no processamento: ' + error.message);
+                        console.error('Erro de Rede/Fetch:', error);
+                        // Capturar detalhes específicos do erro de Fetch
+                        let detail = error.message;
+                        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                            detail = "Erro de conexão (Failed to fetch). Pode ser bloqueio de HTTPS, CORS ou o servidor caiu.";
+                        }
+                        alert('ERRO DE PROCESSAMENTO:\n' + detail + '\n\nPor favor, verifique o console (F12) para detalhes técnicos.');
                     } finally {
                         this.enviando = false;
                     }

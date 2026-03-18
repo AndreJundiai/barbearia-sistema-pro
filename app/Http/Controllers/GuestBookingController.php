@@ -25,9 +25,8 @@ class GuestBookingController extends Controller
         }
     }
 
-    public function process(Request $request)
-    {
-        try {
+            \Illuminate\Support\Facades\Log::info("Iniciando processamento de agendamento", ['payload' => $request->all()]);
+
             $data = $request->validate([
                 'client_name' => 'required|string|max:255',
                 'client_phone' => 'required|string|max:20',
