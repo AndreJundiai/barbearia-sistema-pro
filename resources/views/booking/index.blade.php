@@ -275,11 +275,18 @@
                     const scheduled_at = `${this.dataAgendamento} ${this.horaAgendamento}:00`;
                     
                     try {
-                        const response = await fetch('{{ route("booking.process") }}', {
+                        const targetUrl = '{{ route("booking.process") }}';
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                        
+                        console.log('Iniciando fetch para:', targetUrl);
+                        console.log('CSRF Token presente:', !!csrfToken);
+
+                        const response = await fetch(targetUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
                             },
                             body: JSON.stringify({
                                 client_name: this.nomeCliente,

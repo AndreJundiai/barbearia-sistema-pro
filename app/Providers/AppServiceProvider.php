@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (config('app.env') === 'production') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
+        // Compartilha o tempo do último deploy (agora) com todas as views
+        \Illuminate\Support\Facades\View::share('last_deploy', now());
     }
 }

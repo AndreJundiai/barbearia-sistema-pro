@@ -44,4 +44,10 @@
             </x-primary-button>
         </div>
     </form>
+
+    <div class="mt-8 text-center border-t border-gray-100 pt-4">
+        <p class="text-[10px] text-gray-400 uppercase tracking-widest">
+            Último deploy: {{ $last_deploy->diffForHumans() }}
+        </p>
+    </div>
 </x-guest-layout>
