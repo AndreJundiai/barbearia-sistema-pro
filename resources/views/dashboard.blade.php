@@ -73,7 +73,21 @@
 
                     <!-- Column 2: Stats / Sidebar -->
                     <div class="space-y-6">
-                        <div class="bg-deep-black text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
+                        <style>
+                            @keyframes shimmer {
+                                0% { transform: translateX(-100%) rotate(25deg); }
+                                100% { transform: translateX(200%) rotate(25deg); }
+                            }
+                            .shimmer-effect {
+                                position: absolute; top: 0; left: 0; width: 50%; height: 200%;
+                                background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+                                animation: shimmer 4s infinite linear;
+                                pointer-events: none;
+                            }
+                        </style>
+                        <div class="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white p-8 rounded-[2rem] shadow-2xl relative overflow-hidden border border-gold/30 hover:border-gold/60 transition-all duration-500 group">
+                            <div class="shimmer-effect"></div>
+                            
                             <div class="relative z-10">
                                 @php
                                     $topCustomer = $appointments->first()?->customer;
@@ -81,21 +95,47 @@
                                     $target = 10;
                                     $progress = min(($points / $target) * 100, 100);
                                 @endphp
-                                <h4 class="text-gold-400 font-bold text-sm uppercase mb-1">Cartão VIP Digital</h4>
-                                <div class="text-3xl font-black mb-4">
-                                    {{ $points >= $target ? 'Recompensa Liberada!' : 'Cliente VIP' }}
+                                
+                                <div class="flex justify-between items-start mb-8">
+                                    <div>
+                                        <div class="text-[10px] text-gold-400 font-black uppercase tracking-[0.2em] mb-1">Membro Exclusivo</div>
+                                        <h4 class="text-2xl font-luxury text-white">Elite Membership</h4>
+                                    </div>
+                                    <div class="bg-gold-400/10 p-2 rounded-xl border border-gold-400/20">
+                                        <svg class="w-8 h-8 text-gold-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 110-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z"></path>
+                                        </svg>
+                                    </div>
                                 </div>
-                                <div class="w-full bg-gray-800 rounded-full h-3 mb-2">
-                                    <div class="bg-gold-400 h-3 rounded-full transition-all duration-1000" style="width: {{ $progress }}%"></div>
+
+                                <div class="mb-8">
+                                    <div class="flex justify-between items-end mb-2">
+                                        <span class="text-xs text-gray-400 uppercase font-bold">Progresso VIP</span>
+                                        <span class="text-gold-400 font-bold">{{ $points }}/{{ $target }}</span>
+                                    </div>
+                                    <div class="w-full bg-black/40 rounded-full h-2 relative border border-white/5 overflow-hidden">
+                                        <div class="bg-gradient-to-r from-gold-600 to-gold-400 h-full rounded-full transition-all duration-1000 relative" style="width: {{ $progress }}%">
+                                            <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p class="text-xs text-gray-400">
-                                    {{ $points >= $target ? 'Você ganhou um corte grátis!' : 'Faltam ' . ($target - $points) . ' cortes para sua recompensa!' }}
-                                </p>
+
+                                <div class="flex items-center justify-between">
+                                    <div class="text-sm font-mono text-gray-500 tracking-widest">
+                                        **** **** **** {{ str_pad(Auth::id(), 4, '0', STR_PAD_LEFT) }}
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-[10px] text-gray-400 uppercase mb-1">Status</div>
+                                        <span class="inline-flex px-3 py-1 rounded-full text-[10px] font-bold {{ $points >= $target ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-gold-500/20 text-gold-400 border border-gold-500/30' }}">
+                                            {{ $points >= $target ? 'RECOMPENSA DISPONÍVEL' : 'PROX-LEVEL ELITE' }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                            <!-- Subtle background SVG -->
-                            <svg class="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-gray-800 opacity-20 transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 110-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clip-rule="evenodd"></path>
-                            </svg>
+
+                            <!-- Geometric Patterns -->
+                            <div class="absolute top-[-10%] right-[-10%] w-40 h-40 bg-gold-400/5 rounded-full blur-3xl group-hover:bg-gold-400/10 transition-colors"></div>
+                            <div class="absolute bottom-[-10%] left-[-10%] w-32 h-32 bg-gold-400/5 rounded-full blur-2xl group-hover:bg-gold-400/10 transition-colors"></div>
                         </div>
 
                         <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">

@@ -28,6 +28,15 @@
         .glass { background: rgba(26, 26, 26, 0.8); backdrop-filter: blur(10px); }
         .hero-bg { background-image: linear-gradient(to bottom, rgba(10,10,10,0.7), #0a0a0a), url('/images/hero-booking.png'); background-size: cover; background-position: center; }
         [x-cloak] { display: none !important; }
+        .card-container { perspective: 1000px; width: 100%; max-width: 320px; margin: 0 auto 20px auto; }
+        .card-inner { width: 100%; height: 200px; transition: transform 0.6s; transform-style: preserve-3d; border-radius: 1.5rem; }
+        .card-flipped { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; padding: 20px; border-radius: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; }
+        .card-front { background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); border: 1px solid #D4AF37; }
+        .card-back { background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%); border: 1px solid #D4AF37; transform: rotateY(180deg); }
+        .card-chip { width: 40px; height: 30px; background: linear-gradient(135deg, #a0a0a0 0%, #dcdcdc 100%); border-radius: 5px; margin-bottom: 10px; }
+        .card-stripe { width: 100%; height: 40px; background: #000; position: absolute; left: 0; top: 30px; }
+        .cvv-box { width: 100%; background: #fff; height: 35px; margin-top: 80px; text-align: right; padding: 5px 15px; color: #000; font-family: monospace; font-weight: bold; }
     </style>
 </head>
 <body class="min-h-screen hero-bg">
@@ -170,13 +179,68 @@
                             <p class="text-sm font-bold text-gold">R$ <span x-text="servicoSelecionado?.price"></span></p>
                         </div>
                         <div x-show="metodoPagamento === 'credit_card'">
-                             <p class="text-xs mb-4 text-gray-400">Simulação de Cartão de Crédito:</p>
-                             <div class="space-y-3">
-                                 <input type="text" placeholder="Número do Cartão" class="w-full bg-gray-900/50 border-gray-800 rounded text-xs p-2">
-                                 <div class="grid grid-cols-2 gap-2">
-                                     <input type="text" placeholder="Validade" class="w-full bg-gray-900/50 border-gray-800 rounded text-xs p-2">
-                                     <input type="text" placeholder="CVV" class="w-full bg-gray-900/50 border-gray-800 rounded text-xs p-2">
+                             <!-- Virtual Card -->
+                             <div class="card-container">
+                                 <div class="card-inner" :class="{ 'card-flipped': cardFlipped }">
+                                     <!-- Front -->
+                                     <div class="card-face card-front shadow-2xl">
+                                         <div class="flex justify-between items-start">
+                                             <div class="card-chip"></div>
+                                             <svg class="w-10 h-10 text-gold opacity-50" fill="currentColor" viewBox="0 0 24 24">
+                                                 <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4V12h16v6zm0-10H4V6h16v2z"></path>
+                                             </svg>
+                                         </div>
+                                         <div class="mt-4">
+                                             <div class="text-xs text-gray-400 uppercase tracking-widest mb-1">Número do Cartão</div>
+                                             <div class="text-xl font-mono tracking-wider text-white" x-text="cardNumber || '•••• •••• •••• ••••'"></div>
+                                         </div>
+                                         <div class="flex justify-between items-end mt-4">
+                                             <div class="flex-grow">
+                                                 <div class="text-[8px] text-gray-400 uppercase mb-0.5">Titular</div>
+                                                 <div class="text-sm font-bold uppercase tracking-wide truncate pr-2 text-white" x-text="cardNome || 'NOME NO CARTÃO'"></div>
+                                             </div>
+                                             <div class="flex-shrink-0">
+                                                 <div class="text-[8px] text-gray-400 uppercase mb-0.5">Validade</div>
+                                                 <div class="text-sm font-bold text-white uppercase" x-text="cardExpiry || 'MM/AA'"></div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <!-- Back -->
+                                     <div class="card-face card-back shadow-2xl">
+                                         <div class="card-stripe mt-4"></div>
+                                         <div class="cvv-box" x-text="cardCvv || '•••'"></div>
+                                         <div class="mt-auto flex justify-between items-center opacity-50">
+                                            <div class="text-[10px] text-gray-400 uppercase">Segurança</div>
+                                            <div class="w-8 h-8 rounded-full border border-gray-600"></div>
+                                         </div>
+                                     </div>
                                  </div>
+                             </div>
+
+                             <div class="space-y-4">
+                                 <div class="relative group">
+                                     <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Nome no Cartão</label>
+                                     <input type="text" x-model="cardNome" @focus="cardFlipped = false" placeholder="Ex: JOÃO A SILVA" 
+                                            class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
+                                 </div>
+                                 <div class="relative group">
+                                     <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Número do Cartão</label>
+                                     <input type="text" x-model="cardNumber" @input="formatCardNumber" @focus="cardFlipped = false" placeholder="0000 0000 0000 0000" 
+                                            class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
+                                 </div>
+                                 <div class="grid grid-cols-2 gap-4">
+                                     <div class="relative group">
+                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Validade</label>
+                                         <input type="text" x-model="cardExpiry" @input="formatExpiry" @focus="cardFlipped = false" placeholder="MM/AA" 
+                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
+                                     </div>
+                                     <div class="relative group">
+                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">CVV</label>
+                                         <input type="text" x-model="cardCvv" @input="formatCvv" @focus="cardFlipped = true" @blur="cardFlipped = false" placeholder="•••" 
+                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
+                                     </div>
+                                 </div>
+                                 <p class="text-[8px] text-gray-500 text-center uppercase tracking-widest mt-2">Ambiente Seguro & Criptografado</p>
                              </div>
                         </div>
                         <div x-show="metodoPagamento === 'pay_later'" class="text-center py-4">
@@ -235,6 +299,30 @@
                 carregandoHorarios: false,
                 enviando: false,
                 metodoPagamento: 'pix',
+                cardNome: '',
+                cardNumber: '',
+                cardExpiry: '',
+                cardCvv: '',
+                cardFlipped: false,
+
+                formatCardNumber(e) {
+                    let val = e.target.value.replace(/\D/g, '');
+                    val = val.substring(0, 16);
+                    let formatted = val.match(/.{1,4}/g)?.join(' ') || '';
+                    this.cardNumber = formatted;
+                },
+
+                formatExpiry(e) {
+                    let val = e.target.value.replace(/\D/g, '');
+                    if (val.length > 2) {
+                        val = val.substring(0, 2) + '/' + val.substring(2, 4);
+                    }
+                    this.cardExpiry = val.substring(0, 5);
+                },
+
+                formatCvv(e) {
+                    this.cardCvv = e.target.value.replace(/\D/g, '').substring(0, 4);
+                },
                 
                 selecionarServico(servico) {
                     this.servicoSelecionado = servico;
