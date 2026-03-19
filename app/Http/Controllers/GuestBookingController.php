@@ -16,7 +16,8 @@ class GuestBookingController extends Controller
         try {
             $services = Service::all();
             $hairdressers = \App\Models\Hairdresser::all();
-            return view('booking.index', compact('services', 'hairdressers'));
+            $mpPublicKey = env('MERCADO_PAGO_PUBLIC_KEY');
+            return view('booking.index', compact('services', 'hairdressers', 'mpPublicKey'));
         } catch (\Exception $e) {
             if (config('app.debug')) {
                 throw $e;
@@ -117,7 +118,30 @@ class GuestBookingController extends Controller
                             ];
                         } else {
                             $status = $payment->status ?? 'desconhecido';
-                            \Illuminate\Support\Facades\Log::warning("Mercado Pago Status: " . $status);
+                            \Illuminate\Support\Facades\Log::warning("Mercado Pago PIX Status: " . $status);
+                        }
+                    } elseif ($data['payment_method'] === 'credit_card' && $request->has('token')) {
+                        $createRequest["token"] = $request->input('token');
+                        $createRequest["installments"] = 1;
+                        $createRequest["payer"]["email"] = $customer->email ?? 'cliente@exemplo.com';
+                        
+                        $payment = $client->create($createRequest);
+                        
+                        if (isset($payment->status)) {
+                            $data['payment_status'] = $payment->status === 'approved' ? 'paid' : 'pending';
+                            $data['status'] = $payment->status === 'approved' ? 'scheduled' : 'pending_payment';
+                            $paymentInfo = [
+                                'payment_id' => $payment->id,
+                                'status' => $payment->status,
+                                'status_detail' => $payment->status_detail ?? ''
+                            ];
+
+                            if ($payment->status === 'rejected') {
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => 'Pagamento recusado: ' . ($payment->status_detail ?? 'Verifique os dados do cartão.')
+                                ], 422);
+                            }
                         }
                     } else {
                         $data['payment_status'] = 'pending';

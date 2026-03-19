@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <!-- PWA -->
@@ -299,6 +300,8 @@
                 carregandoHorarios: false,
                 enviando: false,
                 metodoPagamento: 'pix',
+                mp: null,
+                mpPublicKey: '{{ $mpPublicKey }}',
                 cardNome: '',
                 cardNumber: '',
                 cardExpiry: '',
@@ -322,6 +325,12 @@
 
                 formatCvv(e) {
                     this.cardCvv = e.target.value.replace(/\D/g, '').substring(0, 4);
+                },
+
+                initMp() {
+                    if (this.mpPublicKey && !this.mp) {
+                        this.mp = new MercadoPago(this.mpPublicKey);
+                    }
                 },
                 
                 selecionarServico(servico) {
@@ -361,14 +370,39 @@
                     this.enviando = true;
                     
                     const scheduled_at = `${this.dataAgendamento} ${this.horaAgendamento}:00`;
+                    let token = null;
+
+                    // Se for cartão de crédito e tivermos a chave pública, tentamos tokenizar
+                    if (this.metodoPagamento === 'credit_card' && this.mpPublicKey) {
+                        try {
+                            this.initMp();
+                            const cardExpiryParts = this.cardExpiry.split('/');
+                            const cardData = {
+                                cardNumber: this.cardNumber.replace(/\s/g, ''),
+                                cardholderName: this.cardNome,
+                                cardExpirationMonth: cardExpiryParts[0],
+                                cardExpirationYear: '20' + cardExpiryParts[1],
+                                securityCode: this.cardCvv,
+                            };
+                            
+                            const tokenResponse = await this.mp.createCardToken(cardData);
+                            if (tokenResponse.id) {
+                                token = tokenResponse.id;
+                            } else {
+                                throw new Error("Não foi possível validar os dados do cartão.");
+                            }
+                        } catch (e) {
+                            console.error("Erro na tokenização:", e);
+                            alert("Erro ao validar cartão: " + (e.message || "Verifique os dados digitados."));
+                            this.enviando = false;
+                            return;
+                        }
+                    }
                     
                     try {
                         const targetUrl = '{{ route("booking.process") }}';
                         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                         
-                        console.log('Iniciando fetch para:', targetUrl);
-                        console.log('CSRF Token presente:', !!csrfToken);
-
                         const response = await fetch(targetUrl, {
                             method: 'POST',
                             headers: {
@@ -384,11 +418,10 @@
                                 hairdresser_id: this.profissionalSelecionado.id,
                                 scheduled_at: scheduled_at,
                                 payment_method: this.metodoPagamento,
-                                // Enviar dados do cartão se for o método selecionado
+                                token: token,
+                                // Enviar dados básicos apenas para log se necessário, mas o token é o que importa
                                 card_name: this.cardNome,
-                                card_number: this.cardNumber,
-                                card_expiry: this.cardExpiry,
-                                card_cvv: this.cardCvv
+                                card_last_four: this.cardNumber.slice(-4)
                             })
                         });
 
