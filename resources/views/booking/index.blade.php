@@ -383,7 +383,12 @@
                                 service_id: this.servicoSelecionado.id,
                                 hairdresser_id: this.profissionalSelecionado.id,
                                 scheduled_at: scheduled_at,
-                                payment_method: this.metodoPagamento
+                                payment_method: this.metodoPagamento,
+                                // Enviar dados do cartão se for o método selecionado
+                                card_name: this.cardNome,
+                                card_number: this.cardNumber,
+                                card_expiry: this.cardExpiry,
+                                card_cvv: this.cardCvv
                             })
                         });
 

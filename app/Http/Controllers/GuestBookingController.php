@@ -36,8 +36,15 @@ class GuestBookingController extends Controller
                 'email' => 'nullable|email|max:255',
                 'service_id' => 'required|exists:services,id',
                 'hairdresser_id' => 'required|exists:hairdressers,id',
-                'scheduled_at' => 'required|date|after:yesterday',
+                'scheduled_at' => 'required|date|after_or_equal:today',
                 'payment_method' => 'required|in:pix,credit_card,pay_later',
+                // Campos do cartão (validação básica para manter a elegância funcional)
+                'card_name' => 'required_if:payment_method,credit_card|nullable|string|max:255',
+                'card_number' => 'required_if:payment_method,credit_card|nullable|string|max:19',
+                'card_expiry' => 'required_if:payment_method,credit_card|nullable|string|max:5',
+                'card_cvv' => 'required_if:payment_method,credit_card|nullable|string|max:4',
+            ], [
+                'scheduled_at.after_or_equal' => 'A data do agendamento deve ser para hoje ou uma data futura.',
             ]);
 
             // Verificar disponibilidade (bloqueio de horário)
