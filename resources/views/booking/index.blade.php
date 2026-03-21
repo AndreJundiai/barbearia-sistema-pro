@@ -398,7 +398,15 @@
                     let token = null;
 
                     // Se for cartão de crédito e tivermos a chave pública, tentamos tokenizar
-                    if (this.metodoPagamento === 'credit_card' && this.mpPublicKey) {
+                    if (this.metodoPagamento === 'credit_card') {
+                        if (!this.mpPublicKey || this.mpPublicKey === '') {
+                            this.erroMensagem = "Configuração incompleta.";
+                            this.detalhesErro = "A chave pública do Mercado Pago não foi configurada no servidor (MERCADO_PAGO_PUBLIC_KEY).";
+                            this.enviando = false;
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                            return;
+                        }
+
                         try {
                             this.initMp();
                             const cardExpiryParts = this.cardExpiry.split('/');
