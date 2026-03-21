@@ -421,26 +421,41 @@
                             let year = cardExpiryParts[1].trim();
                             if (year.length === 2) year = '20' + year;
 
-                            const cardData = {
-                                cardNumber: this.cardNumber.replace(/\D/g, ''),
-                                cardholderName: this.cardNome.trim(),
-                                cardExpirationMonth: month,
-                                cardExpirationYear: year,
-                                securityCode: this.cardCvv.trim(),
+                            // Dados formatados para a API do Mercado Pago
+                            const cardDataPayload = {
+                                card_number: this.cardNumber.replace(/\D/g, ''),
+                                cardholder: {
+                                    name: this.cardNome.trim()
+                                },
+                                expiration_month: parseInt(month),
+                                expiration_year: parseInt(year),
+                                security_code: this.cardCvv.trim(),
                             };
 
                             // Validação simples antes de chamar MP
-                            if (cardData.cardNumber.length < 13) throw new Error("Número de cartão inválido.");
-                            if (cardData.cardholderName.length < 3) throw new Error("Nome do titular inválido.");
-                            if (cardData.securityCode.length < 3) throw new Error("CVV inválido.");
+                            if (cardDataPayload.card_number.length < 13) throw new Error("Número de cartão inválido.");
+                            if (cardDataPayload.cardholder.name.length < 3) throw new Error("Nome do titular inválido.");
+                            if (cardDataPayload.security_code.length < 3) throw new Error("CVV inválido.");
                             
-                            const tokenResponse = await this.mp.createCardToken(cardData);
+                            // Tokenização via API Direta para evitar erro de "Private element" do SDK V2
+                            const tokenResult = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${this.mpPublicKey}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(cardDataPayload)
+                            });
+                            
+                            const tokenResponse = await tokenResult.json();
                             
                             if (tokenResponse && tokenResponse.id) {
                                 token = tokenResponse.id;
-                            } else if (tokenResponse && tokenResponse.errors) {
-                                const mainError = tokenResponse.errors[0];
-                                throw new Error(`Mercado Pago: ${mainError.message || mainError.code}`);
+                            } else if (tokenResponse && (tokenResponse.cause || tokenResponse.message)) {
+                                let errorDetail = "Verifique os dados do cartão.";
+                                if (tokenResponse.cause && tokenResponse.cause[0]) {
+                                    errorDetail = tokenResponse.cause[0].description;
+                                } else if (tokenResponse.message) {
+                                    errorDetail = tokenResponse.message;
+                                }
+                                throw new Error(`Mercado Pago: ${errorDetail}`);
                             } else {
                                 throw new Error("O Mercado Pago não retornou um token. Verifique se os dados estão corretos.");
                             }
