@@ -21,7 +21,7 @@ services:
         fromContext:
           parameter: externalUrl
       - key: SESSION_DRIVER
-        value: cookie
+        value: database
       - key: APP_LOCALE
         value: pt_BR
       - key: LOG_CHANNEL
