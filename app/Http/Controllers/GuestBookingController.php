@@ -30,6 +30,7 @@ class GuestBookingController extends Controller
     {
         try {
             \Illuminate\Support\Facades\Log::info("Iniciando processamento de agendamento", ['payload' => $request->all()]);
+            \Illuminate\Support\Facades\Log::info("Validando agendamento para: " . $request->input('scheduled_at'));
 
             $data = $request->validate([
                 'client_name' => 'required|string|max:255',
@@ -37,7 +38,7 @@ class GuestBookingController extends Controller
                 'email' => 'nullable|email|max:255',
                 'service_id' => 'required|exists:services,id',
                 'hairdresser_id' => 'required|exists:hairdressers,id',
-                'scheduled_at' => 'required|date|after_or_equal:today',
+                'scheduled_at' => 'required|date|after:yesterday',
                 'payment_method' => 'required|in:pix,credit_card,pay_later',
                 'token' => 'required_if:payment_method,credit_card|nullable|string',
                 // Campos do cartão (opcionais se houver token, obrigatórios se não houver e for cartão)
@@ -46,7 +47,7 @@ class GuestBookingController extends Controller
                 'card_expiry' => 'nullable|string|max:5',
                 'card_cvv' => 'nullable|string|max:4',
             ], [
-                'scheduled_at.after_or_equal' => 'A data do agendamento deve ser para hoje ou uma data futura.',
+                'scheduled_at.after' => 'A data do agendamento deve ser para hoje ou uma data futura.',
             ]);
 
             // Verificar disponibilidade (bloqueio de horário)
