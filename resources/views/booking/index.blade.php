@@ -410,13 +410,29 @@
                         try {
                             this.initMp();
                             const cardExpiryParts = this.cardExpiry.split('/');
+                            if (cardExpiryParts.length !== 2) {
+                                throw new Error("A validade do cartão deve estar no formato MM/AA.");
+                            }
+
+                            // Formatar Mês para 2 dígitos e Ano para 4 dígitos
+                            let month = cardExpiryParts[0].trim();
+                            if (month.length === 1) month = '0' + month;
+                            
+                            let year = cardExpiryParts[1].trim();
+                            if (year.length === 2) year = '20' + year;
+
                             const cardData = {
-                                cardNumber: this.cardNumber.replace(/\s/g, ''),
-                                cardholderName: this.cardNome,
-                                cardExpirationMonth: cardExpiryParts[0],
-                                cardExpirationYear: '20' + cardExpiryParts[1],
-                                securityCode: this.cardCvv,
+                                cardNumber: this.cardNumber.replace(/\D/g, ''),
+                                cardholderName: this.cardNome.trim(),
+                                cardExpirationMonth: month,
+                                cardExpirationYear: year,
+                                securityCode: this.cardCvv.trim(),
                             };
+
+                            // Validação simples antes de chamar MP
+                            if (cardData.cardNumber.length < 13) throw new Error("Número de cartão inválido.");
+                            if (cardData.cardholderName.length < 3) throw new Error("Nome do titular inválido.");
+                            if (cardData.securityCode.length < 3) throw new Error("CVV inválido.");
                             
                             const tokenResponse = await this.mp.createCardToken(cardData);
                             
@@ -426,11 +442,11 @@
                                 const mainError = tokenResponse.errors[0];
                                 throw new Error(`Mercado Pago: ${mainError.message || mainError.code}`);
                             } else {
-                                throw new Error("Não foi possível validar os dados do cartão.");
+                                throw new Error("O Mercado Pago não retornou um token. Verifique se os dados estão corretos.");
                             }
                         } catch (e) {
                             console.error("Erro na tokenização:", e);
-                            this.erroMensagem = "Falha ao processar dados do cartão.";
+                            this.erroMensagem = "Erro no cartão de crédito";
                             this.detalhesErro = e.message;
                             this.enviando = false;
                             window.scrollTo({ top: 0, behavior: 'smooth' });
