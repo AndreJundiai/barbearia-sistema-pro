@@ -59,6 +59,27 @@
             </template>
         </div>
 
+        <!-- Error Alert -->
+        <div x-show="erroMensagem" x-cloak x-transition class="mb-6 bg-red-900/40 border-l-4 border-red-500 p-4 rounded-lg relative overflow-hidden">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3 pr-8">
+                    <p class="text-sm font-bold text-red-200" x-text="erroMensagem"></p>
+                    <div x-show="detalhesErro" class="mt-2 text-xs text-red-300/80 bg-black/30 p-2 rounded border border-red-900/50 break-all font-mono">
+                         <span class="block mb-1 border-b border-red-900/30 pb-1">Detalhes Técnicos:</span>
+                         <span x-text="detalhesErro"></span>
+                    </div>
+                </div>
+                <button @click="erroMensagem = null" class="absolute top-2 right-2 text-red-400 hover:text-white">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"/></svg>
+                </button>
+            </div>
+        </div>
+
         <!-- Steps Container -->
         <div class="glass p-8 rounded-2xl border border-gray-800 shadow-2xl">
             
@@ -307,6 +328,8 @@
                 cardExpiry: '',
                 cardCvv: '',
                 cardFlipped: false,
+                erroMensagem: null,
+                detalhesErro: null,
 
                 formatCardNumber(e) {
                     let val = e.target.value.replace(/\D/g, '');
@@ -368,6 +391,8 @@
 
                 async finalizarAgendamento() {
                     this.enviando = true;
+                    this.erroMensagem = null;
+                    this.detalhesErro = null;
                     
                     const scheduled_at = `${this.dataAgendamento} ${this.horaAgendamento}:00`;
                     let token = null;
@@ -386,15 +411,21 @@
                             };
                             
                             const tokenResponse = await this.mp.createCardToken(cardData);
-                            if (tokenResponse.id) {
+                            
+                            if (tokenResponse && tokenResponse.id) {
                                 token = tokenResponse.id;
+                            } else if (tokenResponse && tokenResponse.errors) {
+                                const mainError = tokenResponse.errors[0];
+                                throw new Error(`Mercado Pago: ${mainError.message || mainError.code}`);
                             } else {
                                 throw new Error("Não foi possível validar os dados do cartão.");
                             }
                         } catch (e) {
                             console.error("Erro na tokenização:", e);
-                            alert("Erro ao validar cartão: " + (e.message || "Verifique os dados digitados."));
+                            this.erroMensagem = "Falha ao processar dados do cartão.";
+                            this.detalhesErro = e.message;
                             this.enviando = false;
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
                             return;
                         }
                     }
@@ -419,7 +450,6 @@
                                 scheduled_at: scheduled_at,
                                 payment_method: this.metodoPagamento,
                                 token: token,
-                                // Enviar dados básicos apenas para log se necessário, mas o token é o que importa
                                 card_name: this.cardNome,
                                 card_last_four: this.cardNumber.slice(-4)
                             })
@@ -431,17 +461,20 @@
                             window.location.href = `/agendar/sucesso/${result.appointment_id}`;
                         } else {
                             const errorMsg = result.message || 'Erro desconhecido no servidor';
+                            this.erroMensagem = 'Não conseguimos processar seu agendamento.';
+                            this.detalhesErro = errorMsg;
                             console.error('Erro retornado pela API:', result);
-                            alert('Erro ao processar agendamento: ' + errorMsg);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                     } catch (error) {
                         console.error('Erro de Rede/Fetch:', error);
-                        // Capturar detalhes específicos do erro de Fetch
+                        this.erroMensagem = 'Erro de conexão com o servidor.';
                         let detail = error.message;
                         if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-                            detail = "Erro de conexão (Failed to fetch). Pode ser bloqueio de HTTPS, CORS ou o servidor caiu.";
+                            detail = "Erro de conexão (Failed to fetch). Certifique-se de que está online ou tente novamente em instantes.";
                         }
-                        alert('ERRO DE PROCESSAMENTO:\n' + detail + '\n\nPor favor, verifique o console (F12) para detalhes técnicos.');
+                        this.detalhesErro = detail;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     } finally {
                         this.enviando = false;
                     }
