@@ -97,8 +97,7 @@ class GuestBookingController extends Controller
 
                     $createRequest = [
                         "transaction_amount" => (float) $service->price,
-                        "description" => $service->name,
-                        "payment_method_id" => $data['payment_method'],
+                        "description" => "Serviço: " . $service->name,
                         "payer" => [
                             "email" => $customer->email ?? 'cliente@exemplo.com',
                             "first_name" => $customer->name,
@@ -106,6 +105,7 @@ class GuestBookingController extends Controller
                     ];
 
                     if ($data['payment_method'] === 'pix') {
+                        $createRequest["payment_method_id"] = "pix";
                         $payment = $client->create($createRequest);
                         
                         if (isset($payment->status) && $payment->status === 'pending') {
@@ -124,7 +124,6 @@ class GuestBookingController extends Controller
                     } elseif ($data['payment_method'] === 'credit_card' && $request->has('token')) {
                         $createRequest["token"] = $request->input('token');
                         $createRequest["installments"] = 1;
-                        $createRequest["payer"]["email"] = $customer->email ?? 'cliente@exemplo.com';
                         
                         $payment = $client->create($createRequest);
                         
@@ -149,8 +148,15 @@ class GuestBookingController extends Controller
                         $data['status'] = 'pending_payment';
                     }
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error("Erro Mercado Pago Interno: " . $e->getMessage());
-                    throw $e; // Re-throw para o catch externo capturar e retornar JSON
+                    $errorMsg = $e->getMessage();
+                    // Tentar extrair detalhes extras da resposta se houver
+                    if (isset($e->api_response)) {
+                        $details = json_encode($e->api_response);
+                        \Illuminate\Support\Facades\Log::error("Erro Mercado Pago (API Response): " . $details);
+                        $errorMsg .= " (Detalhes: " . $details . ")";
+                    }
+                    \Illuminate\Support\Facades\Log::error("Erro Mercado Pago Interno: " . $errorMsg);
+                    throw new \Exception($errorMsg); // Re-throw para o catch externo capturar
                 }
             } else {
                 $data['payment_status'] = $data['payment_method'] === 'pay_later' ? 'pending' : 'paid';
