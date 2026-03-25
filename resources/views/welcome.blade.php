@@ -212,16 +212,7 @@
         <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div class="logo">ELITE BARBER</div>
             <nav>
-                @if (Route::has('login'))
-                    @auth
-                        <a href="{{ url('/dashboard') }}">Painel</a>
-                    @else
-                        <a href="{{ route('login') }}">Login</a>
-                        @if (Route::has('register'))
-                            <a href="{{ route('register') }}">Registro</a>
-                        @endif
-                    @endauth
-                @endif
+                {{-- Links de Login Removidos para Privacidade --}}
             </nav>
         </div>
     </header>

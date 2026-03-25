@@ -76,8 +76,6 @@
                             </form>
                         </x-slot>
                     </x-dropdown>
-                @else
-                    <a href="{{ route('login') }}" class="text-sm text-gray-700 underline">Log in</a>
                 @endauth
             </div>
 
@@ -147,12 +145,6 @@
                         </x-responsive-nav-link>
                     </form>
                 </div>
-            </div>
-        @else
-            <div class="pt-4 pb-1 border-t border-gray-200">
-                <x-responsive-nav-link :href="route('login')">
-                    {{ __('Log in') }}
-                </x-responsive-nav-link>
             </div>
         @endauth
     </div>
