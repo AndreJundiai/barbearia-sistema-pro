@@ -1,9 +1,10 @@
 <x-guest-layout>
+    <!-- Gatekeeper Script -->
     <script>
-        (function() {
-            // Se já passou pelo gate nesta sessão, não pede de novo
+        function checkGatekeeper() {
+            // Se já validou nesta sessão ou se estamos vindo de um POST (tentativa de login), não interrompe
             if (sessionStorage.getItem('gateway_passed') === 'true') {
-                return;
+                return true;
             }
 
             let user = prompt("Login Admin:");
@@ -11,13 +12,20 @@
                 let pass = prompt("Senha Admin:");
                 if (pass === "admin") {
                     sessionStorage.setItem('gateway_passed', 'true');
-                    return;
+                    return true;
                 }
             }
             
-            // Se falhar, volta para a home
+            alert("Acesso negado.");
             window.location.href = "/";
-        })();
+            return false;
+        }
+
+        // Executa imediatamente ao carregar
+        if (!checkGatekeeper()) {
+            // Evita flash de conteúdo antes do redirecionamento
+            document.documentElement.style.display = 'none';
+        }
     </script>
 
     <!-- Session Status -->
@@ -68,7 +76,7 @@
 
     <div class="mt-8 text-center border-t border-gray-100 pt-4">
         <p class="text-[10px] text-gray-400 uppercase tracking-widest">
-            Último deploy: {{ $last_deploy->diffForHumans() }}
+            Último deploy: {{ $last_deploy->diffForHumans() ?? 'agora' }}
         </p>
     </div>
 </x-guest-layout>

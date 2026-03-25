@@ -212,7 +212,12 @@
         <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div class="logo">ELITE BARBER</div>
             <nav>
-                {{-- Links de Login Removidos para Privacidade --}}
+                @if (Route::has('login'))
+                    @auth
+                        <a href="{{ url('/dashboard') }}" class="nav-login">Painel Admin</a>
+                    @endauth
+                @endif
+                {{-- Links de Login de Visitantes ocultos conforme solicitado --}}
             </nav>
         </div>
     </header>
