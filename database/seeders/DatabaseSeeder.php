@@ -27,10 +27,20 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'test@example.com'],
+            ['email' => 'barbeiro1@example.com'],
             [
-                'name' => 'Test User',
-                'password' => bcrypt('password'),
+                'name' => 'Barbeiro 1',
+                'password' => bcrypt('barber123'),
+                'role' => 'barber',
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'barbeiro2@example.com'],
+            [
+                'name' => 'Barbeiro 2',
+                'password' => bcrypt('barber123'),
+                'role' => 'barber',
             ]
         );
 
