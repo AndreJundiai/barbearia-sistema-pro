@@ -414,14 +414,12 @@
                                 throw new Error("A validade do cartão deve estar no formato MM/AA.");
                             }
 
-                            // Formatar Mês para 2 dígitos e Ano para 4 dígitos
                             let month = cardExpiryParts[0].trim();
                             if (month.length === 1) month = '0' + month;
                             
                             let year = cardExpiryParts[1].trim();
                             if (year.length === 2) year = '20' + year;
 
-                            // Dados formatados para a API do Mercado Pago
                             const cardDataPayload = {
                                 card_number: this.cardNumber.replace(/\D/g, ''),
                                 cardholder: {
@@ -432,37 +430,46 @@
                                 security_code: this.cardCvv.trim(),
                             };
 
-                            // Validação simples antes de chamar MP
-                            if (cardDataPayload.card_number.length < 13) throw new Error("Número de cartão inválido.");
-                            if (cardDataPayload.cardholder.name.length < 3) throw new Error("Nome do titular inválido.");
-                            if (cardDataPayload.security_code.length < 3) throw new Error("CVV inválido.");
+                            if (cardDataPayload.card_number.length < 13) throw new Error("Número de cartão incompleto.");
+                            if (cardDataPayload.cardholder.name.length < 3) throw new Error("Nome do titular muito curto.");
+                            if (cardDataPayload.security_code.length < 3) throw new Error("CVV deve ter 3 ou 4 dígitos.");
                             
-                            // Tokenização via API Direta para evitar erro de "Private element" do SDK V2
+                            console.log("Iniciando tokenização via API V1...");
+                            
                             const tokenResult = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${this.mpPublicKey}`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
                                 body: JSON.stringify(cardDataPayload)
                             });
                             
+                            if (!tokenResult.ok) {
+                                const errorData = await tokenResult.json();
+                                console.error("Erro na resposta do Mercado Pago:", errorData);
+                                let errorDetail = errorData.message || "Erro na comunicação com o Mercado Pago.";
+                                if (errorData.cause && errorData.cause[0]) {
+                                    errorDetail = errorData.cause[0].description || errorDetail;
+                                }
+                                throw new Error(errorDetail);
+                            }
+
                             const tokenResponse = await tokenResult.json();
                             
                             if (tokenResponse && tokenResponse.id) {
                                 token = tokenResponse.id;
-                            } else if (tokenResponse && (tokenResponse.cause || tokenResponse.message)) {
-                                let errorDetail = "Verifique os dados do cartão.";
-                                if (tokenResponse.cause && tokenResponse.cause[0]) {
-                                    errorDetail = tokenResponse.cause[0].description;
-                                } else if (tokenResponse.message) {
-                                    errorDetail = tokenResponse.message;
-                                }
-                                throw new Error(`Mercado Pago: ${errorDetail}`);
+                                console.log("Token gerado com sucesso:", token);
                             } else {
-                                throw new Error("O Mercado Pago não retornou um token. Verifique se os dados estão corretos.");
+                                throw new Error("O Mercado Pago não retornou um token válido.");
                             }
                         } catch (e) {
-                            console.error("Erro na tokenização:", e);
-                            this.erroMensagem = "Erro no cartão de crédito";
+                            console.error("Falha Crítica na Tokenização:", e);
+                            this.erroMensagem = "Falha no Cartão de Crédito";
                             this.detalhesErro = e.message;
+                            if (e.message === 'Failed to fetch') {
+                                this.detalhesErro = "Não foi possível conectar ao Mercado Pago (CORS/Network error). Verifique se o bloqueador de anúncios está desativado.";
+                            }
                             this.enviando = false;
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                             return;

@@ -25,6 +25,18 @@
                         </div>
 
                         <div>
+                            <label for="specialty" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Especialidade</label>
+                            <input type="text" name="specialty" id="specialty" value="{{ old('specialty', $hairdresser->specialty) }}" class="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-gold focus:border-gold dark:text-gray-100">
+                            @error('specialty') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label for="bio" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Biografia / Descrição</label>
+                            <textarea name="bio" id="bio" rows="3" class="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-gold focus:border-gold dark:text-gray-100">{{ old('bio', $hairdresser->bio) }}</textarea>
+                            @error('bio') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
                             <label for="commission_percent" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Comissão (%)</label>
                             <div class="mt-1 relative rounded-md shadow-sm">
                                 <input type="number" step="0.5" name="commission_percent" id="commission_percent" value="{{ old('commission_percent', $hairdresser->commission_percent) }}" required class="block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-gold focus:border-gold dark:text-gray-100">

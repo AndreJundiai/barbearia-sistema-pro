@@ -41,6 +41,7 @@
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ $hairdresser->name }}</div>
+                                            <div class="text-[10px] text-gray-400 uppercase tracking-tighter">{{ $hairdresser->specialty ?? 'Profissional' }}</div>
                                         </div>
                                     </div>
                                 </td>

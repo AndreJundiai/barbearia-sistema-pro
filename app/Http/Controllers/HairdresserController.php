@@ -22,6 +22,8 @@ class HairdresserController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'specialty' => 'nullable|string|max:255',
+            'bio' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
             'commission_percent' => 'required|numeric|min:0|max:100',
         ]);
@@ -40,6 +42,8 @@ class HairdresserController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'specialty' => 'nullable|string|max:255',
+            'bio' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
             'commission_percent' => 'required|numeric|min:0|max:100',
         ]);
