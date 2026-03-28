@@ -66,7 +66,8 @@ class GuestBookingController extends Controller
                 'payment_method' => 'required|in:pix,credit_card,pay_later',
                 'token' => 'nullable|string',
                 // Campos do cartão (opcionais na validação principal, checados manualmente abaixo se for cartão)
-                'card_name' => 'required_if:payment_method,credit_card|nullable|string|max:255',
+                'card_name' => 'required_if:payment_method,credit_card|string|nullable',
+                'card_cpf' => 'required_if:payment_method,credit_card|string|size:11|nullable',
                 'card_number' => 'nullable|string|max:19',
                 'card_expiry' => 'nullable|string|max:5',
                 'card_cvv' => 'nullable|string|max:4',
@@ -121,15 +122,15 @@ class GuestBookingController extends Controller
 
                     $createRequest = [
                         "transaction_amount" => (float) $service->price,
-                        "description" => "Reserva: " . $service->name . " - " . $customer->name,
+                        "description" => "Agendamento: " . $service->name,
                         "payer" => [
-                            "email" => $customer->email ?? 'cliente@exemplo.com',
-                            "first_name" => $customer->name,
+                            "email" => $request->input('email') ?: 'cliente@exemplo.com',
+                            "first_name" => $request->input('client_name'),
                             "identification" => [
                                 "type" => "CPF",
-                                "number" => "12345678909"
+                                "number" => $request->input('card_cpf') ?: '00000000000'
                             ]
-                        ],
+                        ]
                     ];
 
                     if ($data['payment_method'] === 'pix') {

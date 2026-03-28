@@ -261,10 +261,17 @@
                                      <input type="text" x-model="cardNome" @focus="cardFlipped = false" placeholder="Ex: JOÃO A SILVA" 
                                             class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
                                  </div>
-                                 <div class="relative group">
-                                     <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Número do Cartão</label>
-                                     <input type="text" x-model="cardNumber" @input="formatCardNumber" @focus="cardFlipped = false" placeholder="0000 0000 0000 0000" 
-                                            class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
+                                 <div class="grid grid-cols-2 gap-4">
+                                     <div class="relative group">
+                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Número do Cartão</label>
+                                         <input type="text" x-model="cardNumber" @input="formatCardNumber" @focus="cardFlipped = false" placeholder="0000 0000 0000 0000" 
+                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
+                                     </div>
+                                     <div class="relative group">
+                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">CPF do Titular</label>
+                                         <input type="text" x-model="cardCpf" @input="formatCpf" @focus="cardFlipped = false" placeholder="000.000.000-00" 
+                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
+                                     </div>
                                  </div>
                                  <div class="grid grid-cols-2 gap-4">
                                      <div class="relative group">
@@ -347,6 +354,7 @@
                 },
                 cardNome: '',
                 cardNumber: '',
+                cardCpf: '',
                 cardExpiry: '',
                 cardCvv: '',
                 cardFlipped: false,
@@ -366,6 +374,15 @@
                     val = val.substring(0, 16);
                     let formatted = val.match(/.{1,4}/g)?.join(' ') || '';
                     this.cardNumber = formatted;
+                },
+
+                formatCpf(e) {
+                    let val = e.target.value.replace(/\D/g, '');
+                    val = val.substring(0, 11);
+                    if (val.length > 9) val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                    else if (val.length > 6) val = val.replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3");
+                    else if (val.length > 3) val = val.replace(/(\d{3})(\d{3})/, "$1.$2");
+                    this.cardCpf = val;
                 },
 
                 formatExpiry(e) {
@@ -442,13 +459,19 @@
                         // Tokenização via chamada direta à API (bypassa a exigência de iframe do SDK V2 mantendo o UI customizado)
                         if (this.metodoPagamento === 'credit_card') {
                             const expiry = this.cardExpiry.split('/');
+                            const rawCpf = this.cardCpf.replace(/\D/g, '');
+                            
+                            if (rawCpf.length !== 11) {
+                                throw new Error("O CPF do titular deve ter 11 dígitos.");
+                            }
+
                             const cardPayload = {
                                 card_number: this.cardNumber.replace(/\D/g, ''),
                                 cardholder: {
                                     name: this.cardNome,
                                     identification: {
                                         type: "CPF",
-                                        number: "12345678909" // CPF matematicamente válido para passar na checagem
+                                        number: rawCpf
                                     }
                                 },
                                 expiration_month: parseInt(expiry[0]),
@@ -510,7 +533,8 @@
                                 payment_method: this.metodoPagamento,
                                 token: token,
                                 payment_method_id: payment_method_id,
-                                card_name: this.cardNome
+                                card_name: this.cardNome,
+                                card_cpf: this.metodoPagamento === 'credit_card' ? this.cardCpf.replace(/\D/g, '') : null
                             })
                         });
 
