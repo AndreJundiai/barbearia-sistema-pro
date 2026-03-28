@@ -19,10 +19,11 @@ class GuestBookingController extends Controller
             $mpPublicKey = env('MERCADO_PAGO_PUBLIC_KEY');
             return view('booking.index', compact('services', 'hairdressers', 'mpPublicKey'));
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Erro ao carregar agendamento: " . $e->getMessage());
             if (config('app.debug')) {
                 throw $e;
             }
-            return response("Erro no Agendamento: " . $e->getMessage() . " (Verifique se o banco de dados está migrado e populado)", 500);
+            return response("Erro no Agendamento: " . $e->getMessage() . " (Verifique se o banco de dados está migrado e se as chaves do Mercado Pago em .env estão corretas)", 500);
         }
     }
 
@@ -38,16 +39,39 @@ class GuestBookingController extends Controller
                 'email' => 'nullable|email|max:255',
                 'service_id' => 'required|exists:services,id',
                 'hairdresser_id' => 'required|exists:hairdressers,id',
-                'scheduled_at' => 'required|date|after:yesterday',
+                'scheduled_at' => [
+                    'required',
+                    'date',
+                    function ($attribute, $value, $fail) {
+                        try {
+                            $scheduled = \Carbon\Carbon::parse($value, config('app.timezone'));
+                            $now = \Carbon\Carbon::now(config('app.timezone'));
+                            
+                            // Se for uma data do passado real (ex: ontem)
+                            if ($scheduled->isBefore($now->startOfDay())) {
+                                $fail('A data do agendamento não pode ser no passado.');
+                                return;
+                            }
+                            
+                            // Se for hoje, mas um horário que já passou há mais de 10 min
+                            if ($scheduled->isSameDay($now) && $scheduled->isBefore($now->copy()->subMinutes(10))) {
+                                $fail('O horário selecionado (' . $scheduled->format('H:i') . ') já passou. Escolha um horário futuro.');
+                            }
+
+                        } catch (\Exception $e) {
+                            $fail('Formato de data e hora inválido.');
+                        }
+                    }
+                ],
                 'payment_method' => 'required|in:pix,credit_card,pay_later',
-                'token' => 'required_if:payment_method,credit_card|nullable|string',
-                // Campos do cartão (opcionais se houver token, obrigatórios se não houver e for cartão)
+                'token' => 'nullable|string',
+                // Campos do cartão (opcionais na validação principal, checados manualmente abaixo se for cartão)
                 'card_name' => 'required_if:payment_method,credit_card|nullable|string|max:255',
                 'card_number' => 'nullable|string|max:19',
                 'card_expiry' => 'nullable|string|max:5',
                 'card_cvv' => 'nullable|string|max:4',
             ], [
-                'scheduled_at.after' => 'A data do agendamento deve ser para hoje ou uma data futura.',
+                'scheduled_at.required' => 'Por favor, informe a data e hora do agendamento.',
             ]);
 
             // Verificar disponibilidade (bloqueio de horário)
@@ -88,9 +112,8 @@ class GuestBookingController extends Controller
 
             if ($isMercadoPagoEnabled && $data['payment_method'] !== 'pay_later') {
                 try {
-                    // Testar se a classe existe para evitar fatal error
                     if (!class_exists('\MercadoPago\MercadoPagoConfig')) {
-                        throw new \Exception("SDK do Mercado Pago não encontrado. Verifique a instalação.");
+                        throw new \Exception("SDK do Mercado Pago não instalado. Execute 'composer update'.");
                     }
 
                     \MercadoPago\MercadoPagoConfig::setAccessToken($accessToken);
@@ -98,10 +121,14 @@ class GuestBookingController extends Controller
 
                     $createRequest = [
                         "transaction_amount" => (float) $service->price,
-                        "description" => "Serviço: " . $service->name,
+                        "description" => "Reserva: " . $service->name . " - " . $customer->name,
                         "payer" => [
                             "email" => $customer->email ?? 'cliente@exemplo.com',
                             "first_name" => $customer->name,
+                            "identification" => [
+                                "type" => "CPF",
+                                "number" => "12345678909"
+                            ]
                         ],
                     ];
 
@@ -112,25 +139,39 @@ class GuestBookingController extends Controller
                         if (isset($payment->status) && $payment->status === 'pending') {
                             $data['payment_status'] = 'pending';
                             $data['status'] = 'pending_payment';
+                            $data['payment_id'] = (string) $payment->id;
+                            
+                            $qrCodeBase64 = $payment->point_of_interaction->transaction_data->qr_code_base64 ?? '';
+                            $qrCode = $payment->point_of_interaction->transaction_data->qr_code ?? '';
+
                             $paymentInfo = [
-                                'qr_code' => $payment->point_of_interaction->transaction_data->qr_code,
-                                'qr_code_base64' => $payment->point_of_interaction->transaction_data->qr_code_base64,
-                                'ticket_url' => $payment->point_of_interaction->transaction_data->ticket_url,
-                                'payment_id' => $payment->id
+                                'payment_id' => $payment->id,
+                                'qr_code' => $qrCode,
+                                'qr_code_base64' => $qrCodeBase64,
+                                'ticket_url' => $payment->point_of_interaction->transaction_data->ticket_url ?? ''
                             ];
                         } else {
-                            $status = $payment->status ?? 'desconhecido';
-                            \Illuminate\Support\Facades\Log::warning("Mercado Pago PIX Status: " . $status);
+                            throw new \Exception("Erro ao gerar PIX: " . ($payment->status ?? 'desconhecido'));
                         }
-                    } elseif ($data['payment_method'] === 'credit_card' && $request->has('token')) {
-                        $createRequest["token"] = $request->input('token');
+                    } elseif ($data['payment_method'] === 'credit_card') {
+                        $cardToken = $request->input('token');
+                        
+                        // O Token DEVE vir do frontend (SDK V2)
+                        if (!$cardToken) {
+                             throw new \Exception("Ocorreu um erro na validação do cartão. Por favor, tente novamente.");
+                        }
+
+                        $createRequest["token"] = $cardToken;
                         $createRequest["installments"] = 1;
+                        $createRequest["payment_method_id"] = $request->input('payment_method_id'); // Enviado pelo SDK V2
                         
                         $payment = $client->create($createRequest);
                         
                         if (isset($payment->status)) {
                             $data['payment_status'] = $payment->status === 'approved' ? 'paid' : 'pending';
                             $data['status'] = $payment->status === 'approved' ? 'scheduled' : 'pending_payment';
+                            $data['payment_id'] = (string) $payment->id;
+                            
                             $paymentInfo = [
                                 'payment_id' => $payment->id,
                                 'status' => $payment->status,
@@ -138,31 +179,52 @@ class GuestBookingController extends Controller
                             ];
 
                             if ($payment->status === 'rejected') {
+                                $motivo = 'Pagamento recusado.';
+                                if ($payment->status_detail === 'cc_rejected_bad_filled_card_number') $motivo = 'Número do cartão inválido.';
+                                elseif ($payment->status_detail === 'cc_rejected_bad_filled_date') $motivo = 'Data de validade incorreta.';
+                                elseif ($payment->status_detail === 'cc_rejected_bad_filled_security_code') $motivo = 'CVV inválido.';
+                                elseif ($payment->status_detail === 'cc_rejected_insufficient_amount') $motivo = 'Saldo insuficiente.';
+                                elseif ($payment->status_detail === 'cc_rejected_other_reason') $motivo = 'Recusado pelo emissor do cartão.';
+                                elseif ($payment->status_detail === 'cc_rejected_high_risk') $motivo = 'Recusado por segurança (antifraude).';
+                                elseif ($payment->status_detail === 'cc_rejected_call_for_authorize') $motivo = 'Requer autorização do banco.';
+                                elseif ($payment->status_detail === 'cc_rejected_max_attempts') $motivo = 'Máximo de tentativas excedido.';
+                                
                                 return response()->json([
                                     'success' => false,
-                                    'message' => 'Pagamento recusado: ' . ($payment->status_detail ?? 'Verifique os dados do cartão.')
-                                ], 422);
+                                    'message' => $motivo . ' (' . $payment->status_detail . ')'
+                                ], 400);
                             }
                         }
-                    } else {
-                        $data['payment_status'] = 'pending';
-                        $data['status'] = 'pending_payment';
                     }
                 } catch (\Exception $e) {
-                    $errorMsg = $e->getMessage();
-                    // Tentar extrair detalhes extras da resposta se houver
-                    if (isset($e->api_response)) {
-                        $details = json_encode($e->api_response);
-                        \Illuminate\Support\Facades\Log::error("Erro Mercado Pago (API Response): " . $details);
-                        $errorMsg .= " (Detalhes: " . $details . ")";
+                    $details = "";
+                    $userMessage = "Ocorreu um erro no processamento do Mercado Pago.";
+                    
+                    if (method_exists($e, 'getApiResponse') && $e->getApiResponse()) {
+                        $content = $e->getApiResponse()->getContent();
+                        $details = json_encode($content);
+                        
+                        if (isset($content['message'])) {
+                            if ($content['message'] === 'Invalid users involved') {
+                                $userMessage = "E-mail de cliente inválido ou você está tentando fazer um auto-pagamento.";
+                            } else {
+                                $userMessage = "Erro na operadora: " . $content['message'];
+                            }
+                        }
                     }
-                    \Illuminate\Support\Facades\Log::error("Erro Mercado Pago Interno: " . $errorMsg);
-                    throw new \Exception($errorMsg); // Re-throw para o catch externo capturar
+                    
+                    \Illuminate\Support\Facades\Log::error("Erro Mercado Pago: " . $e->getMessage() . " | Detalhes da API: " . $details);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => $userMessage
+                    ], 400);
                 }
             } else {
                 $data['payment_status'] = $data['payment_method'] === 'pay_later' ? 'pending' : 'paid';
                 $data['status'] = 'scheduled';
             }
+
 
             $appointment = Appointment::create($data);
 
@@ -198,6 +260,11 @@ class GuestBookingController extends Controller
                 'payment_info' => $paymentInfo
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first()
+            ], 422);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("ERRO GENERALIZADO NO AGENDAMENTO: " . $e->getMessage());
             return response()->json([

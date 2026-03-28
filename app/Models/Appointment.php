@@ -9,7 +9,7 @@ class Appointment extends Model
     protected $fillable = [
         'user_id', 'client_name', 'client_phone', 'service_id', 'hairdresser_id',
         'scheduled_at', 'status', 'total_price', 'payment_method', 'payment_status', 'commission_status',
-        'reminder_sent', 'customer_id'
+        'reminder_sent', 'customer_id', 'pix_qr_code', 'pix_copy_paste', 'payment_id'
     ];
 
     public function user() { return $this->belongsTo(User::class); }
