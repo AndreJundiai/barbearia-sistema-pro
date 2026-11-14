@@ -1,3 +1,30 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    [x-cloak] { display: none !important; }
+    body { -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+}
+
+@layer utilities {
+    .text-gradient-gold {
+        background: linear-gradient(135deg, #fff 0%, #e5c76b 55%, #d4af37 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .hairline { border-color: rgba(255, 255, 255, 0.08); }
+    .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+    .rise { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+}
+
+@keyframes rise {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise { animation: none; }
+    html { scroll-behavior: auto; }
+}

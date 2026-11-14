@@ -1,88 +1,162 @@
-<!DOCTYPE html>
-<html lang="pt_BR" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sucesso | Barbearia Elite</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #e5e5e5; }
-        .font-luxury { font-family: 'Playfair Display', serif; }
-        .text-gold { color: #D4AF37; }
-        .bg-gold { background-color: #D4AF37; }
-        .glass { background: rgba(26, 26, 26, 0.8); backdrop-filter: blur(10px); }
-    </style>
-</head>
-<body class="min-h-screen flex items-center justify-center p-4">
+@extends('layouts.site')
 
-    <div class="max-w-md w-full glass p-10 rounded-3xl border border-gray-800 text-center shadow-2xl transition-all hover:border-gold">
-        <div class="w-20 h-20 bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30">
-            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-        </div>
-        
-        <h1 class="font-luxury text-3xl text-gold mb-4">Agendamento Confirmado!</h1>
-        <p class="text-gray-400 mb-6 leading-relaxed">
-            @if($appointment->payment_method === 'pay_later')
-                Seu agendamento foi realizado com sucesso. O pagamento será feito diretamente na barbearia. Estamos esperando por você!
-            @elseif($appointment->payment_method === 'pix' && $appointment->payment_status === 'pending')
-                Seu agendamento está <b>quase pronto</b>! Finalize o pagamento via PIX abaixo para garantir sua vaga.
-            @else
-                Seu pagamento via <span class="text-white font-bold uppercase tracking-tighter">
-                    {{ $appointment->payment_method === 'pix' ? 'PIX' : 'Cartão de Crédito' }}
-                </span> foi processado com sucesso. Estamos esperando por você!
-            @endif
-        </p>
+@section('title', 'Meu horário | '.$shop['shop_name'])
+@push('head')<meta name="robots" content="noindex">@endpush
 
-        @if($appointment->payment_method === 'pix' && $appointment->payment_status === 'pending' && $appointment->pix_qr_code)
-        <div class="mb-8 p-4 bg-white/5 rounded-2xl border border-gold/30">
-            <p class="text-[10px] text-gold uppercase tracking-widest mb-3 font-bold">Escaneie o QR Code</p>
-            <div class="bg-white p-2 inline-block rounded-xl mb-4 shadow-xl">
-                <img src="data:image/png;base64,{{ $appointment->pix_qr_code }}" alt="QR Code PIX" class="w-48 h-48">
+@section('content')
+@php
+    $a = $appointment;
+    $awaitingPix = $a->status === 'pending_payment' && $a->payment_method === 'pix';
+    $points = $a->customer?->loyalty_points ?? 0;
+    $progress = $loyaltyTarget ? $points % $loyaltyTarget : 0;
+    $cancelled = in_array($a->status, ['cancelled', 'no_show']);
+@endphp
+<div class="max-w-xl mx-auto px-4 sm:px-6 pt-24 pb-16" x-data="appointmentPage()">
+
+    @if (session('status'))
+        <div class="mb-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ session('status') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{{ session('error') }}</div>
+    @endif
+
+    <div class="text-center mb-8">
+        @if ($cancelled)
+            <div class="w-16 h-16 mx-auto rounded-full bg-red-500/15 text-red-400 flex items-center justify-center mb-5">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
             </div>
-            
-            <div class="mt-2">
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold">Ou use o Copia e Cola</p>
-                <div class="flex gap-2 bg-black/50 p-2 rounded-lg border border-gray-800">
-                    <input type="text" readonly value="{{ $appointment->pix_copy_paste }}" id="pixCode" class="bg-transparent text-[10px] text-gray-400 w-full outline-none truncate">
-                    <button onclick="copyPix()" class="text-gold hover:text-white transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-                    </button>
-                </div>
+            <h1 class="font-display text-3xl font-bold text-white">Agendamento cancelado</h1>
+        @elseif ($awaitingPix)
+            <div x-show="!paid" class="w-16 h-16 mx-auto rounded-full bg-gold/15 text-gold flex items-center justify-center mb-5">
+                <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
             </div>
-        </div>
-        <script>
-            function copyPix() {
-                var copyText = document.getElementById("pixCode");
-                copyText.select();
-                copyText.setSelectionRange(0, 99999);
-                navigator.clipboard.writeText(copyText.value);
-                alert("Código PIX copiado!");
-            }
-        </script>
+            <h1 x-show="!paid" class="font-display text-3xl font-bold text-white">Falta só o PIX</h1>
+            <p x-show="!paid" class="text-neutral-400 mt-2">Pague para garantir seu horário. Esta página atualiza sozinha.</p>
+            <h1 x-show="paid" x-cloak class="font-display text-3xl font-bold text-white">Pagamento confirmado! 🎉</h1>
+        @else
+            <div class="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-5">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <h1 class="font-display text-3xl font-bold text-white">{{ $a->status === 'completed' ? 'Atendimento concluído' : 'Horário confirmado!' }}</h1>
+            <p class="text-neutral-400 mt-2">Te esperamos, {{ \Illuminate\Support\Str::before($a->client_name, ' ') }}.</p>
         @endif
-
-        <div class="bg-black/40 p-6 rounded-2xl border border-gray-800 text-left mb-8">
-            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-800">
-                <span class="text-xs text-gray-500 uppercase tracking-widest font-bold">Serviço</span>
-                <span class="font-bold">{{ $appointment->service->name }}</span>
-            </div>
-            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-800">
-                <span class="text-xs text-gray-500 uppercase tracking-widest font-bold">Data/Hora</span>
-                <span class="font-bold">{{ \Carbon\Carbon::parse($appointment->scheduled_at)->format('d/m/Y H:i') }}</span>
-            </div>
-            <div class="flex justify-between items-center">
-                <span class="text-xs text-gray-500 uppercase tracking-widest font-bold">Cliente</span>
-                <span class="font-bold">{{ $appointment->client_name }}</span>
-            </div>
-        </div>
-
-        <a href="/" class="inline-block bg-gold text-black font-bold py-3 px-10 rounded-full transition-all hover:scale-105 shadow-lg">
-            VOLTAR AO INÍCIO
-        </a>
-        
-        <p class="mt-8 text-[10px] text-gray-600 uppercase tracking-widest">Barbearia Elite &bull; Tradição & Estilo</p>
     </div>
 
-</body>
-</html>
+    @if ($awaitingPix && $a->pix_copy_paste)
+        <div x-show="!paid" class="bg-ink-800 border border-gold/30 rounded-2xl p-6 text-center mb-6">
+            @if ($a->pix_qr_code)
+                <div class="bg-white p-3 rounded-xl inline-block mb-4">
+                    <img src="data:image/png;base64,{{ $a->pix_qr_code }}" alt="QR Code PIX" class="w-52 h-52">
+                </div>
+            @endif
+            <div class="text-xs text-neutral-500 uppercase tracking-widest mb-2">PIX copia e cola</div>
+            <div class="flex gap-2">
+                <input type="text" readonly value="{{ $a->pix_copy_paste }}" class="flex-1 min-w-0 bg-ink border border-white/10 rounded-lg px-3 py-2.5 text-xs text-neutral-300 font-mono">
+                <button type="button" @click="copy(@js($a->pix_copy_paste))" class="bg-gold text-ink font-semibold text-sm px-4 rounded-lg shrink-0" x-text="copied ? 'Copiado!' : 'Copiar'"></button>
+            </div>
+            <div class="text-gold font-bold text-xl mt-5">R$ {{ number_format($a->total_price, 2, ',', '.') }}</div>
+        </div>
+    @endif
+
+    <div class="bg-ink-800 border border-white/10 rounded-2xl divide-y divide-white/10">
+        @foreach ([
+            ['Serviço', $a->service->name ?? '—'],
+            ['Profissional', $a->hairdresser->name ?? '—'],
+            ['Data', ucfirst($a->scheduled_at->translatedFormat('l, d \d\e F'))],
+            ['Horário', $a->scheduled_at->format('H:i')],
+            ['Valor', 'R$ '.number_format($a->total_price, 2, ',', '.')],
+            ['Pagamento', $a->paymentLabel().' · '.($a->payment_status === 'paid' ? 'pago' : 'pendente')],
+        ] as [$label, $value])
+            <div class="flex justify-between gap-4 px-5 py-3.5 text-sm">
+                <span class="text-neutral-500">{{ $label }}</span>
+                <span class="text-white text-right">{{ $value }}</span>
+            </div>
+        @endforeach
+    </div>
+
+    @unless ($cancelled)
+        <div class="grid grid-cols-2 gap-3 mt-6">
+            <a href="{{ $a->googleCalendarLink() }}" target="_blank" rel="noopener" class="text-center border border-white/15 rounded-xl px-4 py-3 text-sm text-white hover:border-gold">Salvar na agenda</a>
+            @if ($maps = \App\Models\Setting::mapsUrl())
+                <a href="{{ $maps }}" target="_blank" rel="noopener" class="text-center border border-white/15 rounded-xl px-4 py-3 text-sm text-white hover:border-gold">Como chegar</a>
+            @else
+                <a href="{{ route('home') }}" class="text-center border border-white/15 rounded-xl px-4 py-3 text-sm text-white hover:border-gold">Página inicial</a>
+            @endif
+        </div>
+    @endunless
+
+    {{-- Fidelidade --}}
+    @if ($a->customer && $loyaltyTarget)
+        <div class="mt-6 rounded-2xl border border-gold/30 bg-gradient-to-br from-ink-700 to-ink p-5">
+            <div class="flex justify-between items-center mb-3">
+                <div class="text-sm font-semibold text-white">Seu cartão fidelidade</div>
+                <div class="text-sm text-gold font-bold">{{ $progress }}/{{ $loyaltyTarget }}</div>
+            </div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+                <div class="h-full bg-gold rounded-full" style="width: {{ $loyaltyTarget ? ($progress / $loyaltyTarget) * 100 : 0 }}%"></div>
+            </div>
+            <p class="text-xs text-neutral-400 mt-3">
+                @if ($points > 0 && $progress === 0)
+                    Você ganhou um atendimento cortesia! Avise na recepção. 🎁
+                @else
+                    Faltam {{ $loyaltyTarget - $progress }} atendimento(s) para ganhar um cortesia.
+                @endif
+            </p>
+        </div>
+    @endif
+
+    <div class="mt-8 text-center space-y-4">
+        <p class="text-xs text-neutral-500">Guarde este link: é por ele que você acompanha ou cancela seu horário.</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <button type="button" @click="share()" class="border border-white/15 rounded-full px-6 py-3 text-sm text-white hover:border-gold">Compartilhar / copiar link</button>
+            @if ($wa = \App\Models\Setting::whatsappUrl('Olá! Tenho um horário em '.$a->scheduled_at->format('d/m H:i').' ('.$a->client_name.').'))
+                <a href="{{ $wa }}" target="_blank" rel="noopener" class="border border-white/15 rounded-full px-6 py-3 text-sm text-white hover:border-gold">Falar no WhatsApp</a>
+            @endif
+        </div>
+
+        @if ($a->canBeCancelledByClient())
+            <form method="POST" action="{{ route('booking.cancel', $a->token) }}" onsubmit="return confirm('Cancelar este agendamento?')">
+                @csrf
+                <button class="text-sm text-red-400 hover:text-red-300 underline mt-2">Cancelar agendamento</button>
+            </form>
+        @endif
+
+        <a href="{{ route('booking.index') }}" class="block text-gold text-sm font-semibold mt-4">Fazer outro agendamento →</a>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+function appointmentPage() {
+    return {
+        paid: false,
+        copied: false,
+        init() {
+            @if ($awaitingPix)
+                const poll = setInterval(async () => {
+                    try {
+                        const r = await fetch(@js(route('booking.status', $a->token)), { headers: { Accept: 'application/json' } });
+                        const s = await r.json();
+                        if (s.payment_status === 'paid') {
+                            this.paid = true;
+                            clearInterval(poll);
+                            setTimeout(() => window.location.reload(), 1500);
+                        }
+                    } catch (e) {}
+                }, 5000);
+            @endif
+        },
+        async copy(text) {
+            try { await navigator.clipboard.writeText(text); this.copied = true; setTimeout(() => this.copied = false, 2000); } catch (e) {}
+        },
+        async share() {
+            const data = { title: @js($shop['shop_name']), text: 'Meu horário', url: window.location.href };
+            if (navigator.share) { try { await navigator.share(data); return; } catch (e) {} }
+            this.copy(window.location.href);
+            alert('Link copiado!');
+        },
+    };
+}
+</script>
+@endpush

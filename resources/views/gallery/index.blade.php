@@ -1,41 +1,55 @@
-@extends('layouts.app')
+@extends('layouts.site')
+
+@section('title', 'Galeria | '.$shop['shop_name'])
+@section('description', 'Veja cortes e barbas feitos na '.$shop['shop_name'].' e agende o seu.')
 
 @section('content')
-<div class="min-h-screen bg-black pt-20 pb-12 px-4">
-    <div class="max-w-7xl mx-auto">
-        <header class="text-center mb-16">
-            <h1 class="font-luxury text-5xl text-gold mb-4">Galeria de Estilos</h1>
-            <p class="text-gray-400 uppercase tracking-widest text-sm">Inspire-se com os melhores trabalhos da Elite</p>
-            <div class="w-24 h-1 bg-gold mx-auto mt-6 rounded-full"></div>
-        </header>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            @forelse ($images as $image)
-                <div class="group relative overflow-hidden rounded-2xl aspect-[4/5] bg-gray-900 border border-gray-800 transition-all hover:border-gold/50">
-                    <img src="{{ Storage::url($image->path) }}" alt="{{ $image->title }}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
-                    <div class="absolute bottom-0 left-0 p-6 w-full transform translate-y-2 transition-transform group-hover:translate-y-0">
-                        <h3 class="text-white font-bold text-xl mb-1">{{ $image->title }}</h3>
-                        <p class="text-gray-400 text-sm italic">{{ $image->description }}</p>
-                    </div>
-                </div>
-            @empty
-                <div class="col-span-full py-20 text-center">
-                    <div class="bg-gray-900/50 inline-block p-10 rounded-full border border-dashed border-gray-700">
-                        <svg class="w-16 h-16 text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <p class="text-gray-500 font-medium">Nossa galeria está sendo preparada para você.</p>
-                    </div>
-                </div>
-            @endforelse
+<div class="max-w-6xl mx-auto px-4 sm:px-6 pt-28 pb-20">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+        <div>
+            <div class="text-gold text-xs font-semibold uppercase tracking-[0.25em] mb-3">Galeria</div>
+            <h1 class="font-display text-4xl sm:text-5xl font-bold text-white">Nossos trabalhos</h1>
+        </div>
+        <div class="flex gap-3">
+            @auth
+                @if (auth()->user()->isAdmin())
+                    <a href="{{ route('gallery.create') }}" class="border border-white/20 text-white px-5 py-3 rounded-full text-sm hover:border-gold">+ Adicionar foto</a>
+                @endif
+            @endauth
+            <a href="{{ route('booking.index') }}" class="bg-gold text-ink font-semibold px-6 py-3 rounded-full text-sm">Quero esse estilo</a>
         </div>
     </div>
-</div>
 
-<style>
-    .font-luxury { font-family: 'Playfair Display', serif; }
-    .text-gold { color: #D4AF37; }
-    .bg-gold { background-color: #D4AF37; }
-</style>
+    @if (session('status'))
+        <div class="mb-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ session('status') }}</div>
+    @endif
+
+    @if ($images->isEmpty())
+        <div class="rounded-2xl border border-dashed border-white/15 py-20 text-center text-neutral-500">
+            Nossa galeria está sendo preparada. Enquanto isso, <a href="{{ route('booking.index') }}" class="text-gold underline">agende seu horário</a>.
+        </div>
+    @else
+        <div class="columns-2 md:columns-3 gap-3 [&>*]:mb-3">
+            @foreach ($images as $image)
+                <figure class="relative group overflow-hidden rounded-xl bg-ink-800 break-inside-avoid">
+                    <img src="{{ Storage::url($image->path) }}" alt="{{ $image->title ?: 'Trabalho da '.$shop['shop_name'] }}" loading="lazy" class="w-full h-auto">
+                    @if ($image->title || $image->description)
+                        <figcaption class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-4 pt-10">
+                            <div class="text-white font-semibold text-sm">{{ $image->title }}</div>
+                            <div class="text-neutral-300 text-xs">{{ $image->description }}</div>
+                        </figcaption>
+                    @endif
+                    @auth
+                        @if (auth()->user()->isAdmin())
+                            <form method="POST" action="{{ route('gallery.destroy', $image) }}" onsubmit="return confirm('Remover esta foto?')" class="absolute top-2 right-2">
+                                @csrf @method('DELETE')
+                                <button class="bg-black/70 text-red-300 text-xs px-2.5 py-1.5 rounded-lg">Remover</button>
+                            </form>
+                        @endif
+                    @endauth
+                </figure>
+            @endforeach
+        </div>
+    @endif
+</div>
 @endsection

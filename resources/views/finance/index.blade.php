@@ -216,7 +216,7 @@
                             </div>
                         </div>
 
-                        @if($comm['pending'] > 0)
+                        @if($comm['pending'] > 0 && auth()->user()->isAdmin())
                             <form action="{{ route('finance.pay-commissions', $comm['id']) }}" method="POST">
                                 @csrf
                                 <button type="submit" class="w-full bg-white text-black font-black py-4 rounded-2xl hover:bg-gold transition-all uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 group/btn shadow-xl">
@@ -267,7 +267,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
         const ctxFlow = document.getElementById('flowChart').getContext('2d');
         const ctxDist = document.getElementById('distributionChart').getContext('2d');

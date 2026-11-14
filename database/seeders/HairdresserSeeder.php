@@ -7,34 +7,21 @@ use Illuminate\Database\Seeder;
 
 class HairdresserSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    /** Equipe inicial — só é criada se ainda não houver profissionais. */
     public function run(): void
     {
+        if (Hairdresser::exists()) {
+            return;
+        }
+
         $hairdressers = [
-            [
-                'name' => 'Marcello',
-                'specialty' => 'Master Barber',
-                'bio' => 'Especialista em cortes clássicos e barbas esculpidas com 15 anos de experiência.',
-            ],
-            [
-                'name' => 'Alexandro',
-                'specialty' => 'Corte & Barba',
-                'bio' => 'Focado em estilos modernos, degradês e design de sobrancelhas masculinas.',
-            ],
-            [
-                'name' => 'Vanderlei',
-                'specialty' => 'Clássico',
-                'bio' => 'A tradição da navalha e o cuidado com cada detalhe do visual masculino.',
-            ],
+            ['name' => 'Marcello', 'specialty' => 'Master Barber', 'bio' => 'Especialista em cortes clássicos e barbas esculpidas com 15 anos de experiência.'],
+            ['name' => 'Alexandro', 'specialty' => 'Corte & Barba', 'bio' => 'Focado em estilos modernos, degradês e design de sobrancelhas masculinas.'],
+            ['name' => 'Vanderlei', 'specialty' => 'Clássico', 'bio' => 'A tradição da navalha e o cuidado com cada detalhe do visual masculino.'],
         ];
 
         foreach ($hairdressers as $hairdresser) {
-            Hairdresser::updateOrCreate(
-                ['name' => $hairdresser['name']],
-                $hairdresser
-            );
+            Hairdresser::create($hairdresser);
         }
     }
 }

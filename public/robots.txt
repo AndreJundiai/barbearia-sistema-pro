@@ -1,2 +1,6 @@
 User-agent: *
-Disallow:
+Disallow: /dashboard
+Disallow: /painel-login
+Disallow: /meu-horario/
+Disallow: /financeiro
+Allow: /

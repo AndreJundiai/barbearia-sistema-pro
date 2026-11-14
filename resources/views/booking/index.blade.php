@@ -1,568 +1,451 @@
-<!DOCTYPE html>
-<html lang="pt_BR" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agendamento | Barbearia Elite</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="https://sdk.mercadopago.com/js/v2"></script>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#D4AF37">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js');
-            });
-        }
-    </script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; color: #e5e5e5; }
-        .font-luxury { font-family: 'Playfair Display', serif; }
-        .text-gold { color: #D4AF37; }
-        .bg-gold { background-color: #D4AF37; }
-        .border-gold { border-color: #D4AF37; }
-        .glass { background: rgba(26, 26, 26, 0.8); backdrop-filter: blur(10px); }
-        .hero-bg { background-image: linear-gradient(to bottom, rgba(10,10,10,0.7), #0a0a0a), url('/images/hero-booking.png'); background-size: cover; background-position: center; }
-        [x-cloak] { display: none !important; }
-        .card-container { perspective: 1000px; width: 100%; max-width: 320px; margin: 0 auto 20px auto; }
-        .card-inner { width: 100%; height: 200px; transition: transform 0.6s; transform-style: preserve-3d; border-radius: 1.5rem; }
-        .card-flipped { transform: rotateY(180deg); }
-        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; padding: 20px; border-radius: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; }
-        .card-front { background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); border: 1px solid #D4AF37; }
-        .card-back { background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%); border: 1px solid #D4AF37; transform: rotateY(180deg); }
-        .card-chip { width: 40px; height: 30px; background: linear-gradient(135deg, #a0a0a0 0%, #dcdcdc 100%); border-radius: 5px; margin-bottom: 10px; }
-        .card-stripe { width: 100%; height: 40px; background: #000; position: absolute; left: 0; top: 30px; }
-        .cvv-box { width: 100%; background: #fff; height: 35px; margin-top: 80px; text-align: right; padding: 5px 15px; color: #000; font-family: monospace; font-weight: bold; }
-    </style>
-</head>
-<body class="min-h-screen hero-bg">
+@extends('layouts.site')
 
-    <div class="max-w-4xl mx-auto px-4 py-12" x-data="fluxoAgendamento()">
-        <!-- Header -->
-        <header class="text-center mb-12">
-            <h1 class="font-luxury text-5xl text-gold mb-2">Barbearia Elite</h1>
-            <p class="text-gray-400 uppercase tracking-widest text-sm">Reserva de Horário & Tradição</p>
-        </header>
+@section('title', 'Agendar horário | '.$shop['shop_name'])
+@section('description', 'Agende seu corte ou barba online na '.$shop['shop_name'].'. Escolha o serviço, o profissional e o horário em menos de 1 minuto.')
+@section('hide_footer', true)
+@section('hide_whatsapp', true)
 
-        <!-- Progress Bar -->
-        <div class="mb-12 flex justify-between items-center relative px-8">
-            <div class="absolute h-0.5 bg-gray-800 w-full left-0 top-1/2 -z-10"></div>
-            <template x-for="n in 5">
-                <div :class="etapa >= n ? 'bg-gold' : 'bg-gray-800'" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500">
-                    <span x-text="n" :class="etapa >= n ? 'text-black' : 'text-gray-500'"></span>
-                </div>
-            </template>
-        </div>
+@push('head')
+    @if ($paymentsEnabled && $mpPublicKey)
+        <script src="https://sdk.mercadopago.com/js/v2"></script>
+    @endif
+@endpush
 
-        <!-- Error Alert -->
-        <div x-show="erroMensagem" x-cloak x-transition class="mb-6 bg-red-900/40 border-l-4 border-red-500 p-4 rounded-lg relative overflow-hidden">
-            <div class="flex items-start">
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <div class="ml-3 pr-8">
-                    <p class="text-sm font-bold text-red-200" x-text="erroMensagem"></p>
-                    <div x-show="detalhesErro" class="mt-2 text-xs text-red-300/80 bg-black/30 p-2 rounded border border-red-900/50 break-all font-mono">
-                         <span class="block mb-1 border-b border-red-900/30 pb-1">Detalhes Técnicos:</span>
-                         <span x-text="detalhesErro"></span>
-                    </div>
-                </div>
-                <button @click="erroMensagem = null" class="absolute top-2 right-2 text-red-400 hover:text-white">
-                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"/></svg>
-                </button>
-            </div>
-        </div>
+@section('content')
+<div class="max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-40 lg:pb-16" x-data="booking()">
 
-        <!-- Steps Container -->
-        <div class="glass p-8 rounded-2xl border border-gray-800 shadow-2xl">
-            
-            <!-- Step 1: Services -->
-            <div x-show="etapa === 1" x-transition>
-                <h2 class="text-2xl font-luxury mb-6 border-b border-gray-800 pb-4">Escolha o Serviço</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    @foreach($services as $service)
-                        <div @click="selecionarServico({{ json_encode($service) }})" 
-                             :class="servicoSelecionado?.id === {{ $service->id }} ? 'border-gold bg-gold/10' : 'border-gray-800 hover:border-gray-600'"
-                             class="p-4 border rounded-xl cursor-pointer transition-all">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h3 class="font-bold text-lg">{{ $service->name }}</h3>
-                                    <p class="text-sm text-gray-400">{{ $service->duration_minutes }} min</p>
-                                </div>
-                                <span class="text-gold font-bold">R$ {{ number_format($service->price, 2, ',', '.') }}</span>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-            
-            <!-- Step 2: Hairdresser -->
-            <div x-show="etapa === 2" x-cloak x-transition>
-                <h2 class="text-2xl font-luxury mb-6 border-b border-gray-800 pb-4">Escolha o Profissional</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    @foreach($hairdressers as $hairdresser)
-                        <div @click="selecionarProfissional({{ json_encode($hairdresser) }})" 
-                             :class="profissionalSelecionado?.id === {{ $hairdresser->id }} ? 'border-gold bg-gold/10' : 'border-gray-800 hover:border-gray-600'"
-                             class="p-4 border rounded-xl cursor-pointer transition-all">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold">
-                                    {{ substr($hairdresser->name, 0, 1) }}
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-lg text-white">{{ $hairdresser->name }}</h3>
-                                    <p class="text-xs text-gray-400">Especialista em Corte & Barba</p>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-
-            <!-- Step 3: Date & Time -->
-            <div x-show="etapa === 3" x-cloak x-transition>
-                <h2 class="text-2xl font-luxury mb-6 border-b border-gray-800 pb-4">Data e Horário</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                        <label class="block text-xs uppercase text-gray-500 font-bold mb-2">Data</label>
-                        <input type="date" x-model="dataAgendamento" :min="hoje" @change="buscarDisponibilidade()" class="w-full bg-gray-900 border-gray-800 rounded-lg text-white focus:ring-gold focus:border-gold">
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase text-gray-500 font-bold mb-2">Horário Disponíveis</label>
-                        <div class="grid grid-cols-3 gap-2">
-                            <template x-for="horario in horariosDisponiveis">
-                                <button @click="horaAgendamento = horario" 
-                                        :disabled="horariosOcupados.includes(horario)"
-                                        :class="horaAgendamento === horario ? 'bg-gold text-black border-gold' : (horariosOcupados.includes(horario) ? 'bg-gray-800 border-transparent text-gray-600 cursor-not-allowed opacity-30' : 'bg-gray-900 border-gray-800 text-gray-400')"
-                                        class="py-2 text-sm border rounded hover:border-gold transition-all" 
-                                        x-text="horario"></button>
-                            </template>
-                        </div>
-                        <div x-show="carregandoHorarios" class="mt-2 text-xs text-gold animate-pulse">Sincronizando horários...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 4: Client Info -->
-            <div x-show="etapa === 4" x-cloak x-transition>
-                <h2 class="text-2xl font-luxury mb-6 border-b border-gray-800 pb-4">Seus Dados</h2>
-                <div class="space-y-6">
-                    <div>
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-2">Nome Completo <span class="text-red-500">*</span></label>
-                        <input type="text" x-model="nomeCliente" placeholder="Como deseja ser chamado?" class="w-full bg-gray-900 border-gray-800 rounded-xl text-white focus:ring-gold focus:border-gold py-3 px-4">
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-2">WhatsApp / Celular <span class="text-red-500">*</span></label>
-                        <input type="tel" x-model="telefoneCliente" placeholder="(00) 00000-0000" class="w-full bg-gray-900 border-gray-800 rounded-xl text-white focus:ring-gold focus:border-gold py-3 px-4">
-                        <p class="text-[10px] text-gray-500 mt-2 flex items-center">
-                            <svg class="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/></svg>
-                            Usaremos este número para enviar o lembrete via WhatsApp/SMS.
-                        </p>
-                    </div>
-                    <div class="pt-2">
-                        <label class="block text-xs uppercase text-gray-400 font-bold mb-2">E-mail (Opcional)</label>
-                        <input type="email" x-model="emailCliente" placeholder="Para receber o lembrete por e-mail" class="w-full bg-gray-900 border-gray-800 rounded-xl text-white focus:ring-gold focus:border-gold py-3 px-4">
-                        <p class="text-[10px] text-gray-500 mt-2 italic">Fique tranquilo, o e-mail não é obrigatório.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 5: Payment -->
-            <div x-show="etapa === 5" x-cloak x-transition>
-                <h2 class="text-2xl font-luxury mb-6 border-b border-gray-800 pb-4">Pagamento Antecipado</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="metodoPagamento === 'pix' ? 'border-gold bg-gold/10' : 'border-gray-800'">
-                            <input type="radio" name="pay" value="pix" x-model="metodoPagamento" class="text-gold focus:ring-gold">
-                            <span class="ml-3 font-bold">PIX (Confirmação Imediata)</span>
-                        </label>
-                        <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="metodoPagamento === 'credit_card' ? 'border-gold bg-gold/10' : 'border-gray-800'">
-                            <input type="radio" name="pay" value="credit_card" x-model="metodoPagamento" class="text-gold focus:ring-gold">
-                            <span class="ml-3 font-bold">Cartão de Crédito</span>
-                        </label>
-                        <label class="flex items-center p-4 border rounded-xl cursor-pointer transition-all" :class="metodoPagamento === 'pay_later' ? 'border-gold bg-gold/10' : 'border-gray-800'">
-                            <input type="radio" name="pay" value="pay_later" x-model="metodoPagamento" class="text-gold focus:ring-gold">
-                            <span class="ml-3 font-bold">Pagar na Barbearia</span>
-                        </label>
-                    </div>
-                    
-                    <div class="bg-black/40 p-6 rounded-xl border border-dashed border-gray-700">
-                        <div x-show="metodoPagamento === 'pix'" class="text-center">
-                            <p class="text-sm mb-4 text-gray-400">Escaneie o QR Code abaixo para pagar via PIX:</p>
-                            <div class="bg-white p-4 inline-block rounded-xl shadow-inner mb-4">
-                                <template x-if="pixData.qr_code_base64">
-                                    <img :src="'data:image/png;base64,' + pixData.qr_code_base64" alt="QR Code PIX" class="w-48 h-48">
-                                </template>
-                                <template x-if="!pixData.qr_code_base64">
-                                    <div class="w-48 h-48 bg-gray-100 flex items-center justify-center text-gray-400 text-xs text-center px-4">
-                                        O QR Code aparecerá após você clicar em 'Finalizar'
-                                    </div>
-                                </template>
-                            </div>
-                            
-                            <div x-show="pixData.qr_code" class="mt-4">
-                                <p class="text-[10px] text-gray-500 uppercase mb-2">Código PIX (Copia e Cola)</p>
-                                <div class="flex gap-2">
-                                    <input type="text" readonly :value="pixData.qr_code" class="flex-grow bg-gray-900 border-gray-800 rounded-lg text-[10px] p-2 text-gold">
-                                    <button @click="copiarPix()" class="bg-gold text-black px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap">Copiar</button>
-                                </div>
-                            </div>
-
-                            <p class="text-sm font-bold text-gold mt-4">Valor: R$ <span x-text="servicoSelecionado?.price"></span></p>
-                        </div>
-                        <div x-show="metodoPagamento === 'credit_card'">
-                             <!-- Virtual Card -->
-                             <div class="card-container">
-                                 <div class="card-inner" :class="{ 'card-flipped': cardFlipped }">
-                                     <!-- Front -->
-                                     <div class="card-face card-front shadow-2xl">
-                                         <div class="flex justify-between items-start">
-                                             <div class="card-chip"></div>
-                                             <svg class="w-10 h-10 text-gold opacity-50" fill="currentColor" viewBox="0 0 24 24">
-                                                 <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4V12h16v6zm0-10H4V6h16v2z"></path>
-                                             </svg>
-                                         </div>
-                                         <div class="mt-4">
-                                             <div class="text-xs text-gray-400 uppercase tracking-widest mb-1">Número do Cartão</div>
-                                             <div class="text-xl font-mono tracking-wider text-white" x-text="cardNumber || '•••• •••• •••• ••••'"></div>
-                                         </div>
-                                         <div class="flex justify-between items-end mt-4">
-                                             <div class="flex-grow">
-                                                 <div class="text-[8px] text-gray-400 uppercase mb-0.5">Titular</div>
-                                                 <div class="text-sm font-bold uppercase tracking-wide truncate pr-2 text-white" x-text="cardNome || 'NOME NO CARTÃO'"></div>
-                                             </div>
-                                             <div class="flex-shrink-0">
-                                                 <div class="text-[8px] text-gray-400 uppercase mb-0.5">Validade</div>
-                                                 <div class="text-sm font-bold text-white uppercase" x-text="cardExpiry || 'MM/AA'"></div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     <!-- Back -->
-                                     <div class="card-face card-back shadow-2xl">
-                                         <div class="card-stripe mt-4"></div>
-                                         <div class="cvv-box" x-text="cardCvv || '•••'"></div>
-                                         <div class="mt-auto flex justify-between items-center opacity-50">
-                                            <div class="text-[10px] text-gray-400 uppercase">Segurança</div>
-                                            <div class="w-8 h-8 rounded-full border border-gray-600"></div>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-
-                             <div class="space-y-4">
-                                 <div class="relative group">
-                                     <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Nome no Cartão</label>
-                                     <input type="text" x-model="cardNome" @focus="cardFlipped = false" placeholder="Ex: JOÃO A SILVA" 
-                                            class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
-                                 </div>
-                                 <div class="grid grid-cols-2 gap-4">
-                                     <div class="relative group">
-                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Número do Cartão</label>
-                                         <input type="text" x-model="cardNumber" @input="formatCardNumber" @focus="cardFlipped = false" placeholder="0000 0000 0000 0000" 
-                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
-                                     </div>
-                                     <div class="relative group">
-                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">CPF do Titular</label>
-                                         <input type="text" x-model="cardCpf" @input="formatCpf" @focus="cardFlipped = false" placeholder="000.000.000-00" 
-                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
-                                     </div>
-                                 </div>
-                                 <div class="grid grid-cols-2 gap-4">
-                                     <div class="relative group">
-                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">Validade</label>
-                                         <input type="text" x-model="cardExpiry" @input="formatExpiry" @focus="cardFlipped = false" placeholder="MM/AA" 
-                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
-                                     </div>
-                                     <div class="relative group">
-                                         <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1 ml-1 transition-all group-focus-within:text-gold">CVV</label>
-                                         <input type="text" x-model="cardCvv" @input="formatCvv" @focus="cardFlipped = true" @blur="cardFlipped = false" placeholder="•••" 
-                                                class="w-full bg-gray-900/50 border-gray-800 rounded-xl text-sm p-3 focus:border-gold focus:ring-1 focus:ring-gold transition-all">
-                                     </div>
-                                 </div>
-                                 <p class="text-[8px] text-gray-500 text-center uppercase tracking-widest mt-2">Ambiente Seguro & Criptografado</p>
-                             </div>
-                        </div>
-                        <div x-show="metodoPagamento === 'pay_later'" class="text-center py-4">
-                            <div class="inline-block p-3 rounded-full bg-gold/20 mb-4">
-                                <svg class="w-8 h-8 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                            </div>
-                            <h3 class="font-bold text-lg mb-2">Pague no Local</h3>
-                            <p class="text-sm text-gray-400">Você pode realizar o pagamento diretamente em nossa barbearia no dia do seu atendimento.</p>
-                            <p class="mt-4 text-gold font-bold">Total: R$ <span x-text="servicoSelecionado?.price"></span></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Navigation Buttons -->
-            <div class="mt-12 flex justify-between">
-                <button x-show="etapa > 1" @click="etapa--" class="text-gray-400 hover:text-white transition-colors">Voltar</button>
-                <div class="flex-grow"></div>
-                <button x-show="etapa < 5" :disabled="!etapaValida()" @click="etapa++" 
-                        class="bg-gold text-black font-bold py-3 px-8 rounded-full disabled:opacity-50 transition-all hover:scale-105">
-                    Próximo Passo
-                </button>
-                <button x-show="etapa === 5" @click="finalizarAgendamento()" :disabled="enviando" 
-                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-12 rounded-full transition-all flex items-center shadow-lg">
-                    <span x-show="!enviando" x-text="metodoPagamento === 'pay_later' ? 'FINALIZAR AGENDAMENTO' : 'FINALIZAR E PAGAR'"></span>
-                    <span x-show="enviando" class="animate-pulse">PROCESSANDO...</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <footer class="mt-12 text-center text-gray-600 text-xs">
-            <p>&copy; 2026 Barbearia Elite. Todos os direitos reservados.</p>
-        </footer>
+    <div class="mb-8">
+        <h1 class="font-display text-3xl sm:text-4xl font-bold text-white">Agende seu horário</h1>
+        <p class="text-neutral-400 mt-2">Rápido, sem cadastro e com confirmação na hora.</p>
     </div>
 
-    <script>
-        function fluxoAgendamento() {
-            return {
-                etapa: 1,
-                servicoSelecionado: null,
-                profissionalSelecionado: null,
-                hoje: new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0'),
-                dataAgendamento: '',
-                horaAgendamento: '',
-                nomeCliente: '',
-                telefoneCliente: '',
-                emailCliente: '',
-                horariosDisponiveis: [
-                    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
-                    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', 
-                    '17:00', '17:30', '18:00', '18:30', '19:00'
-                ],
-                horariosOcupados: [],
-                carregandoHorarios: false,
-                enviando: false,
-                metodoPagamento: 'pix',
-                cardForm: null,
-                mpPublicKey: '{{ $mpPublicKey }}',
-                pixData: {
-                    qr_code: null,
-                    qr_code_base64: null,
-                    payment_id: null
-                },
-                cardNome: '',
-                cardNumber: '',
-                cardCpf: '',
-                cardExpiry: '',
-                cardCvv: '',
-                cardFlipped: false,
-                erroMensagem: null,
-                detalhesErro: null,
+    {{-- Progresso --}}
+    <ol class="grid grid-cols-4 gap-2 mb-8 text-[11px] sm:text-xs font-medium">
+        <template x-for="(label, i) in ['Serviço', 'Profissional', 'Horário', 'Confirmar']" :key="i">
+            <li>
+                <button type="button" @click="goTo(i + 1)" :disabled="!canGoTo(i + 1)" class="w-full text-left disabled:cursor-not-allowed">
+                    <div class="h-1 rounded-full mb-2 transition-colors" :class="step > i ? 'bg-gold' : 'bg-white/10'"></div>
+                    <span :class="step === i + 1 ? 'text-gold' : (step > i + 1 ? 'text-neutral-300' : 'text-neutral-600')" x-text="label"></span>
+                </button>
+            </li>
+        </template>
+    </ol>
 
-                init() {
-                    this.$watch('etapa', value => {
-                        if (value === 5) {
-                            this.initMp();
-                        }
-                    });
-                },
+    <div x-show="error" x-cloak x-transition class="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-start gap-3" role="alert">
+        <svg class="w-5 h-5 shrink-0 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        <span class="flex-1" x-text="error"></span>
+        <button @click="error = null" class="text-red-300 hover:text-white" aria-label="Fechar">✕</button>
+    </div>
 
-                formatCardNumber(e) {
-                    let val = e.target.value.replace(/\D/g, '');
-                    val = val.substring(0, 16);
-                    let formatted = val.match(/.{1,4}/g)?.join(' ') || '';
-                    this.cardNumber = formatted;
-                },
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-8 items-start">
+        <div class="min-w-0">
+            {{-- 1. Serviço --}}
+            <section x-show="step === 1">
+                <h2 class="text-lg font-semibold text-white mb-4">Qual serviço você quer?</h2>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <template x-for="s in services" :key="s.id">
+                        <button type="button" @click="pickService(s)"
+                                :class="service?.id === s.id ? 'border-gold bg-gold/10' : 'border-white/10 hover:border-white/30'"
+                                class="relative text-left p-5 rounded-2xl border bg-ink-800 transition-colors">
+                            <span x-show="s.featured" class="absolute -top-2.5 right-4 bg-gold text-ink text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">Mais pedido</span>
+                            <div class="flex justify-between gap-3">
+                                <span class="font-semibold text-white" x-text="s.name"></span>
+                                <span class="text-gold font-bold shrink-0" x-text="money(s.price)"></span>
+                            </div>
+                            <p class="text-sm text-neutral-400 mt-1.5" x-show="s.description" x-text="s.description"></p>
+                            <p class="text-xs text-neutral-500 mt-3" x-text="s.duration_minutes + ' min'"></p>
+                        </button>
+                    </template>
+                </div>
+                <p x-show="services.length === 0" class="text-neutral-500">Nenhum serviço disponível no momento.</p>
+            </section>
 
-                formatCpf(e) {
-                    let val = e.target.value.replace(/\D/g, '');
-                    val = val.substring(0, 11);
-                    if (val.length > 9) val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-                    else if (val.length > 6) val = val.replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3");
-                    else if (val.length > 3) val = val.replace(/(\d{3})(\d{3})/, "$1.$2");
-                    this.cardCpf = val;
-                },
+            {{-- 2. Profissional --}}
+            <section x-show="step === 2" x-cloak>
+                <h2 class="text-lg font-semibold text-white mb-4">Com quem?</h2>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <template x-for="h in hairdressers" :key="h.id">
+                        <button type="button" @click="pickHairdresser(h)"
+                                :class="hairdresser?.id === h.id ? 'border-gold bg-gold/10' : 'border-white/10 hover:border-white/30'"
+                                class="text-left p-5 rounded-2xl border bg-ink-800 transition-colors flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-gold to-gold-700 text-ink font-display font-bold flex items-center justify-center shrink-0" x-text="initials(h.name)"></div>
+                            <div class="min-w-0">
+                                <div class="font-semibold text-white" x-text="h.name"></div>
+                                <div class="text-sm text-neutral-400 truncate" x-text="h.specialty || 'Barbeiro'"></div>
+                            </div>
+                        </button>
+                    </template>
+                </div>
+            </section>
 
-                formatExpiry(e) {
-                    let val = e.target.value.replace(/\D/g, '');
-                    if (val.length > 2) {
-                        val = val.substring(0, 2) + '/' + val.substring(2, 4);
-                    }
-                    this.cardExpiry = val.substring(0, 5);
-                },
+            {{-- 3. Data e hora --}}
+            <section x-show="step === 3" x-cloak>
+                <h2 class="text-lg font-semibold text-white mb-4">Quando?</h2>
+                <div class="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto pb-2">
+                    <div class="flex gap-2 w-max">
+                        <template x-for="d in days" :key="d.date">
+                            <button type="button" @click="pickDate(d.date)"
+                                    :class="date === d.date ? 'bg-gold text-ink border-gold' : 'bg-ink-800 border-white/10 text-neutral-300 hover:border-white/30'"
+                                    class="w-16 shrink-0 py-3 rounded-xl border text-center transition-colors">
+                                <div class="text-[11px] font-medium" x-text="d.weekday"></div>
+                                <div class="text-xl font-bold leading-tight" x-text="d.day"></div>
+                                <div class="text-[11px] opacity-70" x-text="d.month"></div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
 
-                formatCvv(e) {
-                    this.cardCvv = e.target.value.replace(/\D/g, '').substring(0, 4);
-                },
+                <div class="mt-6">
+                    <div x-show="loadingSlots" class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                        <template x-for="i in 12"><div class="h-11 rounded-lg bg-white/5 animate-pulse"></div></template>
+                    </div>
+                    <div x-show="!loadingSlots && date">
+                        <div x-show="slots.filter(s => s.available).length" class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                            <template x-for="s in slots" :key="s.time">
+                                <button type="button" @click="time = s.time; step = 4; scrollTop()" :disabled="!s.available"
+                                        :class="time === s.time ? 'bg-gold text-ink border-gold' : (s.available ? 'bg-ink-800 border-white/10 text-white hover:border-gold' : 'border-transparent text-neutral-700 line-through')"
+                                        class="h-11 rounded-lg border text-sm font-semibold transition-colors disabled:cursor-not-allowed" x-text="s.time"></button>
+                            </template>
+                        </div>
+                        <div x-show="!slots.filter(s => s.available).length" class="rounded-xl border border-dashed border-white/15 p-6 text-center text-neutral-400 text-sm">
+                            Sem horários livres neste dia com <span class="text-white" x-text="hairdresser?.name"></span>.
+                            <button type="button" class="text-gold underline ml-1" @click="nextDayWithSlots()">Ver próximo dia</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-                initMp() {
-                    if (this.mpPublicKey && typeof window.mpInstance === 'undefined' && window.MercadoPago) {
-                        window.mpInstance = new MercadoPago(this.mpPublicKey, {
-                            locale: 'pt-BR'
-                        });
-                    }
-                },
+            {{-- 4. Dados e pagamento --}}
+            <section x-show="step === 4" x-cloak>
+                <h2 class="text-lg font-semibold text-white mb-4">Seus dados</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="name" class="block text-sm text-neutral-400 mb-1.5">Nome</label>
+                        <input id="name" type="text" x-model.trim="client.name" autocomplete="name" placeholder="Como podemos te chamar?"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-neutral-600 focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                    <div>
+                        <label for="phone" class="block text-sm text-neutral-400 mb-1.5">WhatsApp</label>
+                        <input id="phone" type="tel" inputmode="tel" x-model="client.phone" @input="client.phone = maskPhone($event.target.value)" autocomplete="tel" placeholder="(11) 99999-9999"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-neutral-600 focus:border-gold focus:ring-0 outline-none">
+                        <p class="text-xs text-neutral-500 mt-1.5">Para confirmação, lembrete e seus pontos de fidelidade.</p>
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm text-neutral-400 mb-1.5">E-mail <span class="text-neutral-600">(opcional)</span></label>
+                        <input id="email" type="email" x-model.trim="client.email" autocomplete="email" placeholder="voce@email.com"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-neutral-600 focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                    <div>
+                        <label for="notes" class="block text-sm text-neutral-400 mb-1.5">Observação <span class="text-neutral-600">(opcional)</span></label>
+                        <input id="notes" type="text" x-model.trim="client.notes" maxlength="500" placeholder="Ex.: quero degradê baixo"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-neutral-600 focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                </div>
 
-                copiarPix() {
-                    if (!this.pixData.qr_code) return;
-                    navigator.clipboard.writeText(this.pixData.qr_code);
-                    alert("Código PIX copiado para a área de transferência!");
-                },
-                
-                selecionarServico(servico) {
-                    this.servicoSelecionado = servico;
-                    this.etapa = 2;
-                },
+                <h2 class="text-lg font-semibold text-white mt-10 mb-4">Pagamento</h2>
+                <div class="grid sm:grid-cols-3 gap-3">
+                    @if ($paymentsEnabled)
+                        <label :class="payment === 'pix' ? 'border-gold bg-gold/10' : 'border-white/10'" class="cursor-pointer p-4 rounded-xl border bg-ink-800 transition-colors">
+                            <input type="radio" value="pix" x-model="payment" class="sr-only">
+                            <div class="font-semibold text-white">PIX</div>
+                            <div class="text-xs text-neutral-400 mt-1">Confirmação imediata</div>
+                        </label>
+                        <label :class="payment === 'credit_card' ? 'border-gold bg-gold/10' : 'border-white/10'" class="cursor-pointer p-4 rounded-xl border bg-ink-800 transition-colors">
+                            <input type="radio" value="credit_card" x-model="payment" class="sr-only">
+                            <div class="font-semibold text-white">Cartão de crédito</div>
+                            <div class="text-xs text-neutral-400 mt-1">À vista</div>
+                        </label>
+                    @endif
+                    @if ($allowPayLater || ! $paymentsEnabled)
+                        <label :class="payment === 'pay_later' ? 'border-gold bg-gold/10' : 'border-white/10'" class="cursor-pointer p-4 rounded-xl border bg-ink-800 transition-colors">
+                            <input type="radio" value="pay_later" x-model="payment" class="sr-only">
+                            <div class="font-semibold text-white">Pagar na barbearia</div>
+                            <div class="text-xs text-neutral-400 mt-1">Dinheiro, PIX ou cartão no local</div>
+                        </label>
+                    @endif
+                </div>
 
-                selecionarProfissional(profissional) {
-                    this.profissionalSelecionado = profissional;
-                    this.etapa = 3;
-                    this.buscarDisponibilidade();
-                },
+                @if ($paymentsEnabled)
+                <div x-show="payment === 'credit_card'" x-cloak x-transition class="mt-5 grid grid-cols-2 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-xs text-neutral-400 mb-1.5">Número do cartão</label>
+                        <input type="text" inputmode="numeric" autocomplete="cc-number" x-model="card.number" @input="card.number = maskCard($event.target.value)" placeholder="0000 0000 0000 0000"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs text-neutral-400 mb-1.5">Nome impresso no cartão</label>
+                        <input type="text" autocomplete="cc-name" x-model="card.name" placeholder="JOÃO A SILVA"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3 text-white uppercase focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-neutral-400 mb-1.5">Validade</label>
+                        <input type="text" inputmode="numeric" autocomplete="cc-exp" x-model="card.expiry" @input="card.expiry = maskExpiry($event.target.value)" placeholder="MM/AA"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-neutral-400 mb-1.5">CVV</label>
+                        <input type="text" inputmode="numeric" autocomplete="cc-csc" x-model="card.cvv" @input="card.cvv = $event.target.value.replace(/\D/g, '').slice(0, 4)" placeholder="123"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs text-neutral-400 mb-1.5">CPF do titular</label>
+                        <input type="text" inputmode="numeric" x-model="card.cpf" @input="card.cpf = maskCpf($event.target.value)" placeholder="000.000.000-00"
+                               class="w-full bg-ink-800 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-gold focus:ring-0 outline-none">
+                    </div>
+                    <p class="col-span-2 text-xs text-neutral-500 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                        Pagamento processado com segurança pelo Mercado Pago. Não armazenamos dados do cartão.
+                    </p>
+                </div>
+                <p x-show="payment === 'pix'" x-cloak class="mt-4 text-sm text-neutral-400">Após confirmar, mostraremos o QR Code e o código copia-e-cola. O horário é garantido assim que o pagamento cair.</p>
+                @endif
 
-                async buscarDisponibilidade() {
-                    if (!this.dataAgendamento || !this.profissionalSelecionado) return;
-                    
-                    this.carregandoHorarios = true;
-                    try {
-                        const resp = await fetch(`{{ route('booking.availability') }}?date=${this.dataAgendamento}&hairdresser_id=${this.profissionalSelecionado.id}`);
-                        this.horariosOcupados = await resp.json();
-                    } catch (e) {
-                        console.error("Erro ao buscar horários", e);
-                    } finally {
-                        this.carregandoHorarios = false;
-                    }
-                },
+                <p class="text-xs text-neutral-500 mt-6">Ao confirmar, você concorda com a nossa <a href="{{ route('privacy') }}" target="_blank" class="underline">política de privacidade</a>.</p>
+            </section>
 
-                etapaValida() {
-                    if (this.etapa === 1) return this.servicoSelecionado !== null;
-                    if (this.etapa === 2) return this.profissionalSelecionado !== null;
-                    if (this.etapa === 3) return this.dataAgendamento !== '' && this.horaAgendamento !== '';
-                    if (this.etapa === 4) return this.nomeCliente.length > 2 && this.telefoneCliente.length > 8;
-                    return true;
-                },
+            <div class="hidden lg:flex mt-8 items-center gap-4">
+                <button type="button" x-show="step > 1" @click="back()" class="text-neutral-400 hover:text-white px-2 py-3">← Voltar</button>
+                <button type="button" x-show="step === 4" @click="submit()" :disabled="sending || !formValid()"
+                        class="ml-auto bg-gold text-ink font-semibold px-8 py-4 rounded-full disabled:opacity-40 hover:bg-gold-300 transition-colors">
+                    <span x-show="!sending" x-text="submitLabel()"></span>
+                    <span x-show="sending">Processando…</span>
+                </button>
+            </div>
+        </div>
 
-                async finalizarAgendamento() {
-                    if (this.enviando) return;
-                    
-                    this.enviando = true;
-                    this.erroMensagem = null;
-                    this.detalhesErro = null;
-                    
-                    const scheduled_at = `${this.dataAgendamento} ${this.horaAgendamento}:00`;
-                    let token = null;
-                    let payment_method_id = null;
+        {{-- Resumo (desktop) --}}
+        <aside class="hidden lg:block sticky top-24 bg-ink-800 border border-white/10 rounded-2xl p-6">
+            <div class="text-xs text-neutral-500 uppercase tracking-widest font-semibold mb-4">Resumo</div>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between gap-3"><dt class="text-neutral-500">Serviço</dt><dd class="text-white text-right" x-text="service?.name || '—'"></dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-neutral-500">Profissional</dt><dd class="text-white text-right" x-text="hairdresser?.name || '—'"></dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-neutral-500">Data</dt><dd class="text-white text-right" x-text="dateLabel() || '—'"></dd></div>
+                <div class="flex justify-between gap-3"><dt class="text-neutral-500">Horário</dt><dd class="text-white text-right" x-text="time || '—'"></dd></div>
+            </dl>
+            <div class="border-t border-white/10 mt-5 pt-5 flex justify-between items-baseline">
+                <span class="text-neutral-400">Total</span>
+                <span class="text-2xl font-bold text-gold" x-text="service ? money(service.price) : 'R$ 0,00'"></span>
+            </div>
+        </aside>
+    </div>
 
-                    try {
-                        // Tokenização via chamada direta à API (bypassa a exigência de iframe do SDK V2 mantendo o UI customizado)
-                        if (this.metodoPagamento === 'credit_card') {
-                            const expiry = this.cardExpiry.split('/');
-                            const rawCpf = this.cardCpf.replace(/\D/g, '');
-                            
-                            if (rawCpf.length !== 11) {
-                                throw new Error("O CPF do titular deve ter 11 dígitos.");
-                            }
+    {{-- Barra inferior (celular) --}}
+    <div class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-ink/95 backdrop-blur-xl border-t border-white/10 px-4 pt-3 pb-safe">
+        <div class="flex items-center gap-3">
+            <button type="button" x-show="step > 1" @click="back()" class="w-11 h-11 shrink-0 rounded-full border border-white/15 text-neutral-300 flex items-center justify-center" aria-label="Voltar">←</button>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm text-white truncate" x-text="[service?.name, hairdresser?.name, time && (dateLabel() + ' ' + time)].filter(Boolean).join(' · ') || 'Escolha um serviço'"></div>
+                <div class="text-gold font-bold" x-text="service ? money(service.price) : ''"></div>
+            </div>
+            <button type="button" x-show="step === 4" @click="submit()" :disabled="sending || !formValid()"
+                    class="bg-gold text-ink font-semibold px-5 py-3 rounded-full disabled:opacity-40 shrink-0">
+                <span x-show="!sending">Confirmar</span>
+                <span x-show="sending">Aguarde…</span>
+            </button>
+        </div>
+    </div>
+</div>
+@endsection
 
-                            const cardPayload = {
-                                card_number: this.cardNumber.replace(/\D/g, ''),
-                                cardholder: {
-                                    name: this.cardNome,
-                                    identification: {
-                                        type: "CPF",
-                                        number: rawCpf
-                                    }
-                                },
-                                expiration_month: parseInt(expiry[0]),
-                                expiration_year: parseInt('20' + expiry[1]),
-                                security_code: this.cardCvv,
-                            };
+@push('scripts')
+@php
+    $servicesJson = $services->map(fn ($s) => $s->only(['id', 'name', 'description', 'price', 'duration_minutes', 'featured']))->values();
+    $hairdressersJson = $hairdressers->map(fn ($h) => $h->only(['id', 'name', 'specialty']))->values();
+@endphp
+<script>
+function booking() {
+    return {
+        step: 1,
+        services: @json($servicesJson),
+        hairdressers: @json($hairdressersJson),
+        days: @json($days),
+        service: null,
+        hairdresser: null,
+        date: null,
+        time: null,
+        slots: [],
+        loadingSlots: false,
+        client: { name: '', phone: '', email: '', notes: '' },
+        payment: @json($paymentsEnabled ? 'pix' : 'pay_later'),
+        card: { number: '', name: '', expiry: '', cvv: '', cpf: '' },
+        sending: false,
+        error: null,
+        mpPublicKey: @json($mpPublicKey),
 
-                            try {
-                                const tkResp = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${this.mpPublicKey}`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(cardPayload)
-                                });
-                                
-                                const tkData = await tkResp.json();
-                                
-                                if (!tkResp.ok || !tkData.id) {
-                                    console.error("Erro MP Token:", tkData);
-                                    let errorDetail = "Verifique os dados informados.";
-                                    if (tkData.cause && tkData.cause.length > 0) {
-                                        errorDetail = tkData.cause[0].description;
-                                    }
-                                    throw new Error(errorDetail);
-                                }
-                                
-                                token = tkData.id;
-                                
-                                // Descobrir o payment_method_id (bandeira)
-                                if (window.mpInstance) {
-                                    const paymentMethods = await window.mpInstance.getPaymentMethods({ bin: cardPayload.card_number.substring(0, 6) });
-                                    if (paymentMethods && paymentMethods.results && paymentMethods.results.length > 0) {
-                                        payment_method_id = paymentMethods.results[0].id;
-                                    }
-                                }
-                                
-                            } catch (e) {
-                                console.error("Erro tokenização:", e);
-                                throw new Error("Erro na validação do cartão: " + e.message);
-                            }
-                        }
-                        
-                        const targetUrl = '{{ route("booking.process") }}';
-                        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                        
-                        const response = await fetch(targetUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken,
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                client_name: this.nomeCliente,
-                                client_phone: this.telefoneCliente,
-                                email: this.emailCliente,
-                                service_id: this.servicoSelecionado.id,
-                                hairdresser_id: this.profissionalSelecionado.id,
-                                scheduled_at: scheduled_at,
-                                payment_method: this.metodoPagamento,
-                                token: token,
-                                payment_method_id: payment_method_id,
-                                card_name: this.cardNome,
-                                card_cpf: this.metodoPagamento === 'credit_card' ? this.cardCpf.replace(/\D/g, '') : null
-                            })
-                        });
+        init() {
+            // Lembra os dados do cliente para a próxima vez
+            try {
+                const saved = JSON.parse(localStorage.getItem('booking-client') || 'null');
+                if (saved) this.client = { ...this.client, ...saved, notes: '' };
+            } catch (e) {}
 
-                        const result = await response.json();
-                        
-                        if (result.success) {
-                            if (this.metodoPagamento === 'pix') {
-                                this.pixData = result.payment_info;
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                                // Não redireciona ainda, mostra o QR Code
-                            } else {
-                                window.location.href = `/agendar/sucesso/${result.appointment_id}`;
-                            }
-                        } else {
-                            const errorMsg = result.message || 'Erro desconhecido no servidor';
-                            this.erroMensagem = errorMsg;
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                    } catch (error) {
-                        console.error('Erro de Processamento:', error);
-                        this.erroMensagem = error.message || 'Erro de conexão com o servidor.';
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    } finally {
-                        this.enviando = false;
-                    }
-                }
+            const pre = @json($preselectedService);
+            const preH = @json($preselectedHairdresser);
+            const s = this.services.find(x => x.id === pre);
+            const h = this.hairdressers.find(x => x.id === preH);
+            if (s) { this.service = s; this.step = 2; }
+            if (h) { this.hairdresser = h; if (s) this.toDateStep(); }
+            if (!s && this.services.length === 1) this.pickService(this.services[0]);
+        },
+
+        pickService(s) { this.service = s; this.time = null; this.hairdresser ? this.toDateStep() : (this.step = 2); this.scrollTop(); },
+        pickHairdresser(h) {
+            this.hairdresser = h; this.time = null;
+            this.toDateStep();
+            this.scrollTop();
+        },
+        toDateStep() {
+            this.step = 3;
+            if (!this.date && this.days.length) this.date = this.days[0].date;
+            this.loadSlots();
+        },
+        pickDate(d) { this.date = d; this.time = null; this.loadSlots(); },
+
+        async loadSlots() {
+            if (!this.date || !this.hairdresser || !this.service) return;
+            this.loadingSlots = true;
+            try {
+                const params = new URLSearchParams({ date: this.date, hairdresser_id: this.hairdresser.id, service_id: this.service.id });
+                const r = await fetch(`{{ route('booking.availability') }}?${params}`, { headers: { Accept: 'application/json' } });
+                this.slots = r.ok ? await r.json() : [];
+            } catch (e) {
+                this.slots = [];
+                this.error = 'Não foi possível carregar os horários. Verifique sua conexão.';
+            } finally {
+                this.loadingSlots = false;
             }
-        }
-    </script>
-</body>
-</html>
+        },
+        async nextDayWithSlots() {
+            const idx = this.days.findIndex(d => d.date === this.date);
+            for (let i = idx + 1; i < this.days.length; i++) {
+                this.date = this.days[i].date;
+                await this.loadSlots();
+                if (this.slots.some(s => s.available)) return;
+            }
+        },
+
+        canGoTo(n) {
+            if (n === 1) return true;
+            if (n === 2) return !!this.service;
+            if (n === 3) return !!this.service && !!this.hairdresser;
+            return !!this.service && !!this.hairdresser && !!this.time;
+        },
+        goTo(n) { if (this.canGoTo(n)) { this.step = n; if (n === 3) this.loadSlots(); } },
+        back() { if (this.step > 1) this.step--; if (this.step === 3) this.loadSlots(); this.scrollTop(); },
+        scrollTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
+
+        formValid() {
+            const phone = this.client.phone.replace(/\D/g, '');
+            if (this.client.name.length < 2 || phone.length < 10 || !this.time) return false;
+            if (this.payment === 'credit_card') {
+                return this.card.number.replace(/\D/g, '').length >= 13 && this.card.name.length > 2
+                    && /^\d{2}\/\d{2}$/.test(this.card.expiry) && this.card.cvv.length >= 3
+                    && this.card.cpf.replace(/\D/g, '').length === 11;
+            }
+            return true;
+        },
+        submitLabel() {
+            return { pix: 'Gerar PIX e confirmar', credit_card: 'Pagar e confirmar', pay_later: 'Confirmar agendamento' }[this.payment];
+        },
+
+        async tokenizeCard() {
+            const [mm, yy] = this.card.expiry.split('/');
+            const number = this.card.number.replace(/\D/g, '');
+            const cpf = this.card.cpf.replace(/\D/g, '');
+            const r = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${encodeURIComponent(this.mpPublicKey)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    card_number: number,
+                    cardholder: { name: this.card.name, identification: { type: 'CPF', number: cpf } },
+                    expiration_month: parseInt(mm, 10),
+                    expiration_year: 2000 + parseInt(yy, 10),
+                    security_code: this.card.cvv,
+                }),
+            });
+            const data = await r.json();
+            if (!r.ok || !data.id) {
+                throw new Error('Confira os dados do cartão. ' + (data.cause?.[0]?.description || ''));
+            }
+            let methodId = null;
+            if (window.MercadoPago) {
+                const mp = new MercadoPago(this.mpPublicKey, { locale: 'pt-BR' });
+                const methods = await mp.getPaymentMethods({ bin: number.slice(0, 6) });
+                methodId = methods?.results?.[0]?.id || null;
+            }
+            return { token: data.id, methodId, cpf };
+        },
+
+        async submit() {
+            if (this.sending || !this.formValid()) return;
+            this.sending = true;
+            this.error = null;
+            try {
+                try { localStorage.setItem('booking-client', JSON.stringify({ name: this.client.name, phone: this.client.phone, email: this.client.email })); } catch (e) {}
+
+                let card = {};
+                if (this.payment === 'credit_card') card = await this.tokenizeCard();
+
+                const r = await fetch(`{{ route('booking.process') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                    },
+                    body: JSON.stringify({
+                        client_name: this.client.name,
+                        client_phone: this.client.phone,
+                        email: this.client.email || null,
+                        notes: this.client.notes || null,
+                        service_id: this.service.id,
+                        hairdresser_id: this.hairdresser.id,
+                        scheduled_at: `${this.date} ${this.time}:00`,
+                        payment_method: this.payment,
+                        token: card.token || null,
+                        payment_method_id: card.methodId || null,
+                        card_cpf: card.cpf || null,
+                    }),
+                });
+
+                if (r.status === 419) throw new Error('Sua sessão expirou. Atualize a página e tente novamente.');
+                const result = await r.json();
+                if (!result.success) {
+                    this.error = result.message || 'Não foi possível concluir. Tente novamente.';
+                    if (r.status === 409) { this.time = null; this.step = 3; this.loadSlots(); }
+                    this.scrollTop();
+                    return;
+                }
+                window.location.href = result.redirect;
+            } catch (e) {
+                this.error = e.message || 'Erro de conexão. Tente novamente.';
+                this.scrollTop();
+            } finally {
+                this.sending = false;
+            }
+        },
+
+        // Utilitários
+        money(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); },
+        initials(n) { return n.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase(); },
+        dateLabel() {
+            const d = this.days.find(x => x.date === this.date);
+            return d ? `${d.weekday}, ${d.day}/${this.date.slice(5, 7)}` : '';
+        },
+        maskPhone(v) {
+            v = v.replace(/\D/g, '').slice(0, 11);
+            if (v.length > 10) return v.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+            if (v.length > 6) return v.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+            if (v.length > 2) return v.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+            return v;
+        },
+        maskCard(v) { return v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 '); },
+        maskExpiry(v) { v = v.replace(/\D/g, '').slice(0, 4); return v.length > 2 ? v.slice(0, 2) + '/' + v.slice(2) : v; },
+        maskCpf(v) {
+            v = v.replace(/\D/g, '').slice(0, 11);
+            return v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        },
+    };
+}
+</script>
+@endpush

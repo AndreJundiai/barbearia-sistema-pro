@@ -15,9 +15,9 @@ class FinanceController extends Controller
         $totalExpense = Transaction::where('type', 'expense')->sum('amount');
         $balance = $totalIncome - $totalExpense;
 
-        // Cálculo de Comissões por Profissional
+        // Comissões: só contam atendimentos concluídos
         $hairdressers = \App\Models\Hairdresser::with(['appointments' => function($q) {
-            $q->where('status', '!=', 'cancelled');
+            $q->where('status', 'completed');
         }])->get();
         
         $commissions = $hairdressers->map(function ($h) {
@@ -78,6 +78,7 @@ class FinanceController extends Controller
     public function payCommissions($hairdresserId)
     {
         \App\Models\Appointment::where('hairdresser_id', $hairdresserId)
+            ->where('status', 'completed')
             ->where('commission_status', 'pending')
             ->update(['commission_status' => 'paid']);
 

@@ -1,66 +1,59 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="pt-BR">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta name="robots" content="noindex">
+        <title>Painel | {{ $shop['shop_name'] }}</title>
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
-        <!-- Scripts -->
-        <script src="https://cdn.tailwindcss.com"></script>
-
-        <!-- PWA & Mobile Optimization -->
-        <link rel="manifest" href="/manifest.json">
-        <meta name="theme-color" content="#0a0a0a">
+        <link rel="manifest" href="/manifest.webmanifest">
+        <meta name="theme-color" content="#111111">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="apple-mobile-web-app-title" content="Elite Barber">
-        
-        <style>
-            :root {
-                --sat: env(safe-area-inset-top);
-                --sar: env(safe-area-inset-right);
-                --sab: env(safe-area-inset-bottom);
-                --sal: env(safe-area-inset-left);
-            }
-            body {
-                padding-top: var(--sat);
-                padding-bottom: var(--sab);
-            }
-        </style>
-
+        <style>body { padding-top: env(safe-area-inset-top); }</style>
         <script>
             if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/sw.js');
-                });
+                window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
             }
         </script>
+        @stack('head')
     </head>
-    <body class="font-sans antialiased bg-deep-black text-gray-200">
-        <div class="min-h-screen bg-gray-100 pb-20 sm:pb-0">
+    <body class="font-sans antialiased bg-gray-100 text-gray-900">
+        <div class="min-h-screen pb-24 sm:pb-0">
             @include('layouts.navigation')
-            
-            <x-bottom-nav />
 
-            <!-- Page Heading -->
             @isset($header)
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <header class="bg-white border-b border-gray-200">
+                    <div class="max-w-7xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
                         {{ $header }}
                     </div>
                 </header>
             @endisset
 
-            <!-- Page Content -->
+            @if (session('status'))
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                    <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm">{{ session('status') }}</div>
+                </div>
+            @endif
+            @if ($errors->any())
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                    <div class="rounded-xl bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
+                        @foreach ($errors->all() as $error)<div>{{ $error }}</div>@endforeach
+                    </div>
+                </div>
+            @endif
+
             <main>
                 {{ $slot }}
             </main>
         </div>
+
+        <x-bottom-nav />
+        @stack('scripts')
     </body>
 </html>

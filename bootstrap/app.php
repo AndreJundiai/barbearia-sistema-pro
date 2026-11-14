@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'ai-corrector' => \App\Http\Middleware\EnsureAiCorrectorEnabled::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
