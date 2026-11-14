@@ -10,4 +10,4 @@ storage/framework/sessions/*
 storage/framework/views/*
 database/database.sqlite
 .env
-android
+mobile

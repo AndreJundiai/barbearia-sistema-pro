@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Barbearia Elite</string>
+    <string name="title_activity_main">Barbearia Elite</string>
+    <string name="package_name">com.barbeariaelite.app</string>
+    <string name="custom_url_scheme">com.barbeariaelite.app</string>
+</resources>

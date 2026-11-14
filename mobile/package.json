@@ -1,0 +1,15 @@
+{
+    "name": "barbearia-app",
+    "private": true,
+    "version": "1.0.0",
+    "description": "App Android da barbearia (Capacitor) — abre o site publicado.",
+    "scripts": {
+        "sync": "cap sync android",
+        "open": "cap open android"
+    },
+    "dependencies": {
+        "@capacitor/android": "^8.6.2",
+        "@capacitor/cli": "^8.6.2",
+        "@capacitor/core": "^8.6.2"
+    }
+}
