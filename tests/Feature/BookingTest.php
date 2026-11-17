@@ -210,4 +210,30 @@ class BookingTest extends TestCase
         $this->assertSame($count, Service::count());
         $this->assertTrue(\Illuminate\Support\Facades\Hash::check('nova-senha', $admin->fresh()->password));
     }
+
+    public function test_abandoned_pix_releases_the_slot(): void
+    {
+        $pending = Appointment::create([
+            'client_name' => 'Abandonou PIX', 'service_id' => $this->service->id, 'hairdresser_id' => $this->barber->id,
+            'scheduled_at' => '2026-11-17 10:00:00', 'total_price' => 50, 'payment_method' => 'pix',
+            'payment_status' => 'pending', 'status' => 'pending_payment',
+        ]);
+
+        // Recém-criado: o horário fica reservado enquanto o cliente paga
+        $this->book(['client_phone' => '11977776666'])->assertStatus(409);
+
+        // Passado o prazo do PIX sem pagamento, o horário volta a ficar livre
+        Carbon::setTestNow(now()->addMinutes(31));
+        $this->book(['client_phone' => '11977776666'])->assertOk();
+
+        $this->artisan('app:expire-pending-payments')->assertSuccessful();
+        $this->assertSame('cancelled', $pending->fresh()->status);
+    }
+
+    public function test_booking_beyond_allowed_days_is_rejected(): void
+    {
+        // Padrão: até 30 dias à frente
+        $this->book(['scheduled_at' => '2027-03-02 10:00:00'])->assertStatus(409);
+        $this->assertSame(0, Appointment::count());
+    }
 }

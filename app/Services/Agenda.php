@@ -25,7 +25,8 @@ class Agenda
     /** @return array<int, array{time:string, available:bool}> */
     public function slots(Carbon $date, Hairdresser $hairdresser, Service $service, ?int $ignoreAppointmentId = null): array
     {
-        if (! $this->isOpenOn($date)) {
+        $lastDay = now(config('app.timezone'))->startOfDay()->addDays((int) Setting::get('booking_days_ahead', 30));
+        if (! $this->isOpenOn($date) || $date->copy()->startOfDay()->gt($lastDay)) {
             return [];
         }
 

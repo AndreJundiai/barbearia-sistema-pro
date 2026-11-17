@@ -28,7 +28,7 @@ class HairdresserController extends Controller
             'commission_percent' => 'required|numeric|min:0|max:100',
             'instagram' => 'nullable|string|max:60',
         ]);
-        $validated['active'] = $request->boolean('active', true);
+        $validated['active'] = $request->boolean('active');
         $validated['instagram'] = ltrim((string) ($validated['instagram'] ?? ''), '@') ?: null;
 
         Hairdresser::create($validated);

@@ -54,10 +54,21 @@ class Appointment extends Model
     public function customer() { return $this->belongsTo(Customer::class); }
     public function transactions() { return $this->hasMany(Transaction::class); }
 
-    /** Agendamentos que ocupam a agenda (não cancelados). */
+    /** Minutos que um horário fica reservado aguardando o PIX. */
+    public const PAYMENT_HOLD_MINUTES = 30;
+
+    /** Agendamentos que ocupam a agenda: não cancelados e sem PIX expirado. */
     public function scopeActive($query)
     {
-        return $query->whereNotIn('status', ['cancelled', 'no_show']);
+        return $query->whereNotIn('status', ['cancelled', 'no_show'])
+            ->where(fn ($q) => $q->where('status', '!=', 'pending_payment')
+                ->orWhere('created_at', '>=', now()->subMinutes(self::PAYMENT_HOLD_MINUTES)));
+    }
+
+    public function scopeExpiredPayment($query)
+    {
+        return $query->where('status', 'pending_payment')
+            ->where('created_at', '<', now()->subMinutes(self::PAYMENT_HOLD_MINUTES));
     }
 
     public function endsAt(): Carbon

@@ -59,20 +59,60 @@ class FinanceController extends Controller
             return str_getcsv($line, ';'); // Mudando para ; comum no BR
         }, file($path));
 
-        $header = array_shift($data);
+        array_shift($data); // cabeçalho
 
+        $imported = 0;
+        $skipped = 0;
         foreach ($data as $row) {
-            if (count($row) < 4) continue;
-            
-            Transaction::create([
-                'transaction_date' => \Carbon\Carbon::parse($row[0])->format('Y-m-d'),
-                'description' => $row[1],
-                'type' => $row[2] == 'Entrada' ? 'income' : 'expense',
-                'amount' => (float) str_replace(',', '.', $row[3]),
-            ]);
+            $parsed = count($row) >= 4 ? $this->parseCsvRow($row) : null;
+            if (! $parsed) {
+                $skipped++;
+                continue;
+            }
+
+            Transaction::create($parsed);
+            $imported++;
         }
 
-        return redirect()->back()->with('status', 'Dados importados com sucesso!');
+        $message = "{$imported} lançamento(s) importado(s).";
+        if ($skipped) {
+            $message .= " {$skipped} linha(s) ignorada(s) por data ou valor inválido.";
+        }
+
+        return redirect()->back()->with('status', $message);
+    }
+
+    /** Linha "Data;Descrição;Tipo;Valor" no formato brasileiro (14/11/2026; 1.234,56; Entrada/Saída). */
+    private function parseCsvRow(array $row): ?array
+    {
+        [$rawDate, $description, $rawType, $rawAmount] = array_map('trim', array_slice($row, 0, 4));
+
+        $date = null;
+        foreach (['d/m/Y', 'd/m/y', 'Y-m-d'] as $format) {
+            $candidate = \DateTimeImmutable::createFromFormat('!'.$format, $rawDate);
+            if ($candidate && $candidate->format($format) === $rawDate) {
+                $date = $candidate;
+                break;
+            }
+        }
+
+        $amount = preg_replace('/[^\d,.\-]/', '', $rawAmount);
+        if (str_contains($amount, ',')) {
+            $amount = str_replace(['.', ','], ['', '.'], $amount); // 1.234,56 -> 1234.56
+        }
+
+        if (! $date || $description === '' || ! is_numeric($amount)) {
+            return null;
+        }
+
+        $type = \Illuminate\Support\Str::of($rawType)->ascii()->lower()->toString();
+
+        return [
+            'transaction_date' => $date->format('Y-m-d'),
+            'description' => $description,
+            'type' => in_array($type, ['entrada', 'receita', 'income'], true) ? 'income' : 'expense',
+            'amount' => abs((float) $amount),
+        ];
     }
 
     public function payCommissions($hairdresserId)

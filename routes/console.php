@@ -11,3 +11,4 @@ use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('app:send-reminders')->everyTenMinutes();
 
+Schedule::command('app:expire-pending-payments')->everyFiveMinutes();

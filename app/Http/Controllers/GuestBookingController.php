@@ -251,6 +251,7 @@ class GuestBookingController extends Controller
         try {
             if ($data['payment_method'] === 'pix') {
                 $payload['payment_method_id'] = 'pix';
+                $payload['date_of_expiration'] = now()->addMinutes(Appointment::PAYMENT_HOLD_MINUTES)->format('Y-m-d\\TH:i:s.vP');
                 $payment = $client->create($payload);
                 $tx = $payment->point_of_interaction->transaction_data ?? null;
 
