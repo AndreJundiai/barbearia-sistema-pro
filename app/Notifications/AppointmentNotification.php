@@ -23,19 +23,16 @@ class AppointmentNotification extends Notification
 
     public function via($notifiable)
     {
-        $channels = [];
-        
-        // E-mail if provided
-        if ($notifiable->email) {
+        $channels = ['database'];
+
+        // E-mail somente se o cliente informou e o envio de e-mail está configurado
+        if ($notifiable->email && config('mail.default') !== 'log') {
             $channels[] = 'mail';
         }
-        
-        // Twilio SMS/WhatsApp (Trial)
-        $channels[] = 'database'; // Log in DB
-        
-        // Trigger manual HTTP call to Twilio on save
+
+        // SMS/WhatsApp via Twilio (se configurado)
         $this->sendTwilioNotification($notifiable);
-        
+
         return $channels;
     }
 
@@ -51,10 +48,18 @@ class AppointmentNotification extends Notification
             return;
         }
 
-        $to = $notifiable->phone;
+        $to = preg_replace('/\D/', '', (string) $notifiable->phone);
+        if (! $to) {
+            return;
+        }
+        if (strlen($to) <= 11) {
+            $to = '55'.$to;
+        }
+        $to = '+'.$to;
+        $shop = \App\Models\Setting::get('shop_name');
         $message = $this->type === 'confirmation'
-            ? "Barbearia Elite: Seu agendamento para {$this->appointment->service->name} foi confirmado para " . \Carbon\Carbon::parse($this->appointment->scheduled_at)->format('d/m H:i') . "."
-            : "Lembrete Elite: Seu horário de {$this->appointment->service->name} é em 30 minutos! Nos vemos lá?";
+            ? "{$shop}: Seu agendamento para {$this->appointment->service->name} foi confirmado para " . \Carbon\Carbon::parse($this->appointment->scheduled_at)->format('d/m H:i') . "."
+            : "{$shop}: lembrete! Seu horário de {$this->appointment->service->name} é às " . $this->appointment->scheduled_at->format('H:i') . ". Gerencie: " . route('booking.show', $this->appointment->token);
 
         if ($isWhatsapp) {
             $from = "whatsapp:" . $from;
@@ -82,14 +87,15 @@ class AppointmentNotification extends Notification
 
     public function toMail($notifiable)
     {
-        $subject = $this->type === 'confirmation' 
-            ? 'Confirmação de Agendamento - Barbearia Elite' 
-            : 'Lembrete de Agendamento - Barbearia Elite';
+        $shop = \App\Models\Setting::get('shop_name');
+        $subject = $this->type === 'confirmation'
+            ? "Agendamento confirmado - {$shop}"
+            : "Lembrete do seu horário - {$shop}";
 
         $greeting = "Olá, {$notifiable->name}!";
         $message = $this->type === 'confirmation'
             ? "Seu agendamento para o serviço {$this->appointment->service->name} foi confirmado."
-            : "Lembrete: Seu horário na Barbearia Elite é em 30 minutos!";
+            : "Lembrete: seu horário na {$shop} está chegando!";
 
         return (new MailMessage)
                     ->subject($subject)
@@ -97,7 +103,7 @@ class AppointmentNotification extends Notification
                     ->line($message)
                     ->line("Profissional: {$this->appointment->hairdresser->name}")
                     ->line("Data/Hora: " . \Carbon\Carbon::parse($this->appointment->scheduled_at)->format('d/m/Y H:i'))
-                    ->action('Ver no Mapa', url('/'))
+                    ->action('Ver meu agendamento', route('booking.show', $this->appointment->token))
                     ->line('Agradecemos a preferência!');
     }
 

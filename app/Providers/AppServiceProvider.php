@@ -2,28 +2,29 @@
 
 namespace App\Providers;
 
+use App\Models\Setting;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         if (config('app.env') === 'production') {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
+            URL::forceScheme('https');
         }
 
-        // Compartilha o tempo do último deploy (agora) com todas as views
-        \Illuminate\Support\Facades\View::share('last_deploy', now());
+        \Carbon\Carbon::setLocale(config('app.locale', 'pt_BR'));
+
+        View::share('last_deploy', now());
+
+        // Configurações da barbearia disponíveis em todas as views como $shop
+        View::composer('*', fn ($view) => $view->with('shop', Setting::all_values()));
     }
 }

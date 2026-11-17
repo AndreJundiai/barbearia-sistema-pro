@@ -2,6 +2,12 @@
 
 return [
     /*
+    | O módulo grava arquivos no servidor. Fica desligado em produção,
+    | a não ser que AI_CORRECTOR_ENABLED=true seja definido.
+    */
+    'enabled' => env('AI_CORRECTOR_ENABLED', env('APP_ENV', 'production') !== 'production'),
+
+    /*
     |--------------------------------------------------------------------------
     | Chave da API Gemini
     |--------------------------------------------------------------------------

@@ -1,0 +1,78 @@
+name: App Android
+
+# Gera o app Android (APK para testar e AAB para a Play Store).
+# Roda sozinho quando algo em mobile/ muda, ou manualmente em
+# Actions > App Android > Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: 'URL do site publicado (vazio = variável APP_URL do repositório ou padrão)'
+        required: false
+  push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      APP_URL: ${{ github.event.inputs.app_url || vars.APP_URL || 'https://barbearia-pro-sistema.onrender.com' }}
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Apontar o app para o site
+        run: npx cap sync android
+
+      - name: Preparar chave de assinatura (se configurada)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "Assinatura de release configurada."
+          else
+            echo "::warning::Sem ANDROID_KEYSTORE_BASE64: o AAB sai sem assinatura (só o APK de teste é instalável)."
+          fi
+
+      - name: Compilar
+        working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug bundleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: app-teste-apk
+          path: mobile/android/app/build/outputs/apk/debug/*.apk
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: play-store-aab
+          path: mobile/android/app/build/outputs/bundle/release/*.aab

@@ -23,7 +23,7 @@ class GalleryController extends Controller
         $data = $request->validate([
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
-            'image' => 'required|image|max:2048',
+            'image' => 'required|image|max:4096',
         ]);
 
         $path = $request->file('image')->store('gallery', 'public');
@@ -35,5 +35,13 @@ class GalleryController extends Controller
         ]);
 
         return redirect()->route('gallery.index')->with('status', 'Foto adicionada com sucesso!');
+    }
+
+    public function destroy(GalleryImage $image)
+    {
+        \Illuminate\Support\Facades\Storage::disk('public')->delete($image->path);
+        $image->delete();
+
+        return back()->with('status', 'Foto removida.');
     }
 }

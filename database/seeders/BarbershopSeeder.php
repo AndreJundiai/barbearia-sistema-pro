@@ -2,35 +2,34 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Service;
 use Illuminate\Database\Seeder;
 
 class BarbershopSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    /** Cria o catálogo inicial apenas se ainda não houver serviços cadastrados. */
     public function run(): void
     {
-        \App\Models\Service::create([
-            'name' => 'Corte de Cabelo',
-            'description' => 'Corte tradicional ou degradê completo.',
-            'duration_minutes' => 45,
-            'price' => 0.50,
-        ]);
+        if (Service::exists()) {
+            return;
+        }
 
-        \App\Models\Service::create([
-            'name' => 'Barba Premium',
-            'description' => 'Barba com toalha quente e massagem facial.',
-            'duration_minutes' => 30,
-            'price' => 35.00,
-        ]);
+        $services = [
+            ['Corte de Cabelo', 'Corte tradicional ou degradê completo, com lavagem e finalização.', 45, 45.00, false],
+            ['Barba Premium', 'Barba com toalha quente, navalha e massagem facial.', 30, 35.00, false],
+            ['Combo Elite (Corte + Barba)', 'A experiência completa de barbearia. O mais pedido!', 75, 75.00, true],
+            ['Sobrancelha', 'Design e acabamento na navalha.', 15, 15.00, false],
+        ];
 
-        \App\Models\Service::create([
-            'name' => 'Combo Elite (Corte + Barba)',
-            'description' => 'A experiência completa de barbearia.',
-            'duration_minutes' => 75,
-            'price' => 75.00,
-        ]);
+        foreach ($services as $i => [$name, $description, $duration, $price, $featured]) {
+            Service::create([
+                'name' => $name,
+                'description' => $description,
+                'duration_minutes' => $duration,
+                'price' => $price,
+                'featured' => $featured,
+                'sort_order' => $i,
+            ]);
+        }
     }
 }

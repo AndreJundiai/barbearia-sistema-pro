@@ -47,6 +47,16 @@
                             @error('commission_percent') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                         </div>
 
+                        <div>
+                            <label for="instagram" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Instagram (opcional)</label>
+                            <input type="text" name="instagram" id="instagram" value="{{ old('instagram') }}" placeholder="@usuario" class="mt-1 block w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-gold focus:border-gold dark:text-gray-100">
+                        </div>
+
+                        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" name="active" value="1" class="rounded border-gray-300" @checked(old('active', true))>
+                            Ativo (aparece no site e aceita agendamentos)
+                        </label>
+
                         <div class="pt-4 flex items-center justify-between">
                             <a href="{{ route('hairdressers.index') }}" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 border-b border-transparent hover:border-gray-400 transition-all">Cancelar</a>
                             <button type="submit" class="bg-gold hover:bg-yellow-600 text-gray-900 font-bold py-3 px-10 rounded-lg shadow-lg transition-all transform hover:scale-105 uppercase tracking-widest text-xs">
